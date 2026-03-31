@@ -881,7 +881,7 @@
   <script>
     const DEFAULT_CLIENT_ID = "aa73d66f565e4f28840c017cf439e73a";
     const DEFAULT_REDIRECT_URI = "https://avejohnb.github.io/hitster/";
-    const APP_VERSION = "v2026.04.01-14";
+    const APP_VERSION = "v2026.04.01-15";
     const AUTH_ENDPOINT = "https://accounts.spotify.com/authorize";
     const TOKEN_ENDPOINT = "https://accounts.spotify.com/api/token";
     const API_BASE = "https://api.spotify.com/v1";
@@ -1235,10 +1235,29 @@
 
         saveConfig();
         if (!appState.importedTracks.length) {
-          hostStatus.textContent = "Importeer eerst een playlist naar de lokale trackpool.";
-          importStatus.textContent = "Importeer eerst minstens een playlist met tracks.";
-          importStatusHost.textContent = "Importeer eerst minstens een playlist met tracks.";
-          return;
+          const configuredSources =
+            (playlistSourcesInput.value || playlistSourcesHostInput.value || "").trim() ||
+            (localStorage.getItem(STORAGE_PREFIX + "playlist_sources") || "").trim();
+
+          if (!configuredSources) {
+            hostStatus.textContent = "Voeg eerst Spotify bronnen toe en importeer ze.";
+            importStatus.textContent = "Voeg eerst Spotify bronnen toe.";
+            importStatusHost.textContent = "Voeg eerst Spotify bronnen toe.";
+            return;
+          }
+
+          importStatus.textContent = "Nog geen lokale trackpool gevonden. Bronnen worden nu eerst geimporteerd...";
+          importStatusHost.textContent = importStatus.textContent;
+          const result = await loadPlaylistPool();
+          appState.importedTracks = result.tracks;
+          localStorage.setItem(STORAGE_PREFIX + "imported_tracks", JSON.stringify(result.tracks));
+          importStatus.textContent =
+            "Automatische import gelukt: " +
+            result.tracks.length +
+            " tracks opgeslagen. Gevonden in je invoer: " +
+            result.sourceSummary +
+            ".";
+          importStatusHost.textContent = importStatus.textContent;
         }
         appState.roundNumber = 0;
         appState.usedTrackIds = new Set();

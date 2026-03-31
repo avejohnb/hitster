@@ -840,10 +840,23 @@
     const API_BASE = "https://api.spotify.com/v1";
     const STORAGE_PREFIX = "hitster_qr_";
     const SEARCH_CHARS = "abcdefghijklmnopqrstuvwxyz0123456789";
-    const MIN_POPULARITY = 55;
+    const PRIMARY_MIN_POPULARITY = 55;
+    const FALLBACK_MIN_POPULARITY = 40;
     const SEARCH_TERMS = [
       "love", "night", "heart", "dance", "dream", "baby", "fire", "moon", "star", "summer",
       "blue", "gold", "wild", "radio", "girl", "boy", "light", "home", "street", "party"
+    ];
+    const GENRE_TERMS = [
+      "pop", "rock", "disco", "soul", "funk", "dance", "hip-hop", "rap", "r&b", "indie"
+    ];
+    const BLOCKED_AUDIO_TERMS = [
+      "podcast", "episode", "audiobook", "audioboek", "interview", "commentary", "meditation",
+      "sleep", "story", "verhaal", "sermon", "preek", "speech", "spoken", "dialogue"
+    ];
+    const BLOCKED_MUSIC_TERMS = [
+      "live", "karaoke", "instrumental", "acoustic", "remix", "remastered", "edit", "version",
+      "commentary", "score", "soundtrack", "cast recording", "demo", "mix", "christmas", "xmas",
+      "holiday", "medley", "tribute", "cover", "rehearsal"
     ];
 
     const appState = {
@@ -1209,12 +1222,20 @@
         }
 
         const data = await response.json();
-        const items = (data.tracks && data.tracks.items ? data.tracks.items : [])
-          .filter(hasPlayableTrack)
+        const allItems = (data.tracks && data.tracks.items ? data.tracks.items : [])
+          .filter((track) => hasPlayableTrack(track, PRIMARY_MIN_POPULARITY))
           .filter((track) => !appState.usedTrackIds.has(track.id));
 
+        const fallbackItems = (data.tracks && data.tracks.items ? data.tracks.items : [])
+          .filter((track) => hasPlayableTrack(track, FALLBACK_MIN_POPULARITY))
+          .filter((track) => !appState.usedTrackIds.has(track.id));
+
+        const items = allItems.length ? allItems : fallbackItems;
+
         if (items.length) {
-          const track = mapTrack(items[Math.floor(Math.random() * items.length)]);
+          const sorted = [...items].sort((a, b) => (b.popularity || 0) - (a.popularity || 0));
+          const pool = sorted.slice(0, Math.min(5, sorted.length));
+          const track = mapTrack(pool[Math.floor(Math.random() * pool.length)]);
           appState.usedTrackIds.add(track.id);
           return track;
         }
@@ -1228,37 +1249,61 @@
     function buildRandomSearchQuery(attempt) {
       const currentYear = new Date().getFullYear();
       const yearStart = 1950 + Math.floor(Math.random() * (currentYear - 1949));
-      const yearEnd = Math.min(yearStart + Math.floor(Math.random() * 6), currentYear);
+      const yearEnd = Math.min(yearStart + Math.floor(Math.random() * 10), currentYear);
       const randomChar = SEARCH_CHARS[Math.floor(Math.random() * SEARCH_CHARS.length)];
       const randomTerm = SEARCH_TERMS[Math.floor(Math.random() * SEARCH_TERMS.length)];
+      const genreTerm = GENRE_TERMS[Math.floor(Math.random() * GENRE_TERMS.length)];
+      const decadeStart = Math.max(1950, yearStart - (yearStart % 10));
+      const decadeEnd = Math.min(decadeStart + 9, currentYear);
 
-      if (attempt % 4 === 0) {
+      if (attempt % 6 === 0) {
         return randomTerm + " year:" + yearStart + "-" + yearEnd;
       }
 
-      if (attempt % 4 === 1) {
+      if (attempt % 6 === 1) {
+        return genreTerm + " year:" + decadeStart + "-" + decadeEnd;
+      }
+
+      if (attempt % 6 === 2) {
         return randomChar + " year:" + yearStart + "-" + yearEnd;
       }
 
-      if (attempt % 4 === 2) {
+      if (attempt % 6 === 3) {
         return randomTerm;
+      }
+
+      if (attempt % 6 === 4) {
+        return genreTerm;
       }
 
       return randomChar;
     }
 
-    function hasPlayableTrack(track) {
+    function hasPlayableTrack(track, minPopularity) {
+      const title = (track && track.name ? track.name : "").toLowerCase();
+      const albumName = (track && track.album && track.album.name ? track.album.name : "").toLowerCase();
+      const artistNames = (track && track.artists ? track.artists.map((artist) => artist.name).join(" ").toLowerCase() : "");
+      const combinedText = [title, albumName, artistNames].join(" ");
+      const hasBlockedTerm = BLOCKED_AUDIO_TERMS.some((term) => combinedText.includes(term));
+      const hasBlockedMusicTerm = BLOCKED_MUSIC_TERMS.some((term) => combinedText.includes(term));
+
       return Boolean(
         track &&
         track.uri &&
         !track.is_local &&
+        !hasBlockedTerm &&
+        !hasBlockedMusicTerm &&
         typeof track.popularity === "number" &&
-        track.popularity >= MIN_POPULARITY &&
+        track.popularity >= minPopularity &&
+        typeof track.duration_ms === "number" &&
+        track.duration_ms >= 110000 &&
+        track.duration_ms <= 360000 &&
         track.name &&
         track.artists &&
         track.artists.length &&
         track.album &&
-        track.album.release_date
+        track.album.release_date &&
+        ["album", "single", "compilation"].includes(track.album.album_type)
       );
     }
 

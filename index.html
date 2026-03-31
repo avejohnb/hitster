@@ -1,650 +1,1357 @@
 <!DOCTYPE html>
 <html lang="nl">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Hitster</title>
-<style>
-  @import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500&display=swap');
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Hitster QR</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&display=swap');
 
-  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #0d1117;
+      --panel: rgba(18, 24, 34, 0.9);
+      --panel-strong: #131b27;
+      --card: rgba(255, 255, 255, 0.05);
+      --line: rgba(255, 255, 255, 0.12);
+      --text: #f3f7fb;
+      --muted: #9db0c7;
+      --green: #1ed760;
+      --green-dark: #0ea44a;
+      --accent: #7ce4ff;
+      --danger: #ff8f8f;
+      --shadow: 0 30px 90px rgba(0, 0, 0, 0.32);
+      --radius: 24px;
+    }
 
-  :root {
-    --black: #111;
-    --white: #f5f4f0;
-    --green: #1DB954;
-    --card-bg: #1a1a1a;
-    --border: rgba(255,255,255,0.1);
-    --text-muted: rgba(255,255,255,0.4);
-  }
+    * {
+      box-sizing: border-box;
+    }
 
-  html, body {
-    height: 100%;
-    background: var(--black);
-    color: var(--white);
-    font-family: 'DM Sans', sans-serif;
-    font-size: 16px;
-    line-height: 1.5;
-  }
+    html, body {
+      margin: 0;
+      min-height: 100%;
+      background:
+        radial-gradient(circle at top left, rgba(30, 215, 96, 0.2), transparent 34%),
+        radial-gradient(circle at top right, rgba(124, 228, 255, 0.15), transparent 30%),
+        linear-gradient(180deg, #081019 0%, #0d1117 52%, #111827 100%);
+      color: var(--text);
+      font-family: "Space Grotesk", sans-serif;
+    }
 
-  .screen {
-    min-height: 100vh;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    padding: 2rem;
-    text-align: center;
-  }
+    body {
+      min-height: 100vh;
+    }
 
-  .screen { display: none; }
-  .screen.active { display: flex; }
+    button, input, select {
+      font: inherit;
+    }
 
-  /* ── Login screen ── */
-  #screen-login h1 {
-    font-family: 'DM Mono', monospace;
-    font-size: clamp(2rem, 8vw, 4rem);
-    font-weight: 500;
-    letter-spacing: -0.02em;
-    margin-bottom: 0.5rem;
-  }
+    .shell {
+      width: min(1120px, calc(100vw - 32px));
+      margin: 0 auto;
+      padding: 24px 0 48px;
+    }
 
-  #screen-login p {
-    color: var(--text-muted);
-    margin-bottom: 2.5rem;
-    font-size: 15px;
-  }
+    .screen {
+      display: none;
+    }
 
-  .btn {
-    display: inline-flex;
-    align-items: center;
-    gap: 10px;
-    padding: 14px 28px;
-    border-radius: 50px;
-    border: none;
-    font-family: 'DM Sans', sans-serif;
-    font-size: 15px;
-    font-weight: 500;
-    cursor: pointer;
-    transition: transform 0.15s, opacity 0.15s;
-    text-decoration: none;
-  }
-  .btn:active { transform: scale(0.97); }
+    .screen.active {
+      display: block;
+    }
 
-  .btn-spotify {
-    background: var(--green);
-    color: #000;
-  }
-  .btn-spotify:hover { opacity: 0.88; }
+    .hero,
+    .mobile-card,
+    .host-grid > section {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(18px);
+    }
 
-  .btn-outline {
-    background: transparent;
-    color: var(--white);
-    border: 1px solid var(--border);
-  }
-  .btn-outline:hover { border-color: rgba(255,255,255,0.3); background: rgba(255,255,255,0.05); }
+    .hero {
+      padding: 40px;
+      display: grid;
+      grid-template-columns: 1.2fr 0.8fr;
+      gap: 24px;
+      align-items: stretch;
+    }
 
-  .btn-ghost {
-    background: transparent;
-    color: var(--text-muted);
-    border: none;
-    padding: 10px 20px;
-    font-size: 14px;
-  }
-  .btn-ghost:hover { color: var(--white); }
+    .eyebrow,
+    .kicker,
+    .stat-label,
+    .input-label,
+    .pill,
+    .meta-label {
+      text-transform: uppercase;
+      letter-spacing: 0.14em;
+      font-size: 11px;
+      font-family: "IBM Plex Mono", monospace;
+      color: var(--muted);
+    }
 
-  /* ── Setup screen ── */
-  #screen-setup h2 {
-    font-family: 'DM Mono', monospace;
-    font-size: 1.5rem;
-    font-weight: 500;
-    margin-bottom: 2rem;
-  }
+    h1, h2, h3, p {
+      margin: 0;
+    }
 
-  .setup-box {
-    background: var(--card-bg);
-    border: 1px solid var(--border);
-    border-radius: 16px;
-    padding: 2rem;
-    width: 100%;
-    max-width: 420px;
-    text-align: left;
-  }
+    .hero-copy {
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+      justify-content: space-between;
+    }
 
-  .setup-box label {
-    display: block;
-    font-size: 12px;
-    color: var(--text-muted);
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    margin-bottom: 8px;
-    font-family: 'DM Mono', monospace;
-  }
+    .hero-copy h1 {
+      font-size: clamp(2.6rem, 6vw, 5rem);
+      line-height: 0.92;
+      letter-spacing: -0.04em;
+      max-width: 11ch;
+    }
 
-  .setup-box input {
-    width: 100%;
-    background: rgba(255,255,255,0.06);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    color: var(--white);
-    font-family: 'DM Mono', monospace;
-    font-size: 13px;
-    padding: 10px 14px;
-    margin-bottom: 1.25rem;
-    outline: none;
-    transition: border-color 0.15s;
-  }
-  .setup-box input:focus { border-color: rgba(255,255,255,0.3); }
+    .hero-copy p {
+      font-size: 1.05rem;
+      line-height: 1.6;
+      color: #d7e2f0;
+      max-width: 58ch;
+    }
 
-  .setup-note {
-    font-size: 12px;
-    color: var(--text-muted);
-    margin-top: 1rem;
-    line-height: 1.6;
-  }
-  .setup-note a { color: var(--green); text-decoration: none; }
-  .setup-note a:hover { text-decoration: underline; }
+    .hero-points {
+      display: grid;
+      gap: 10px;
+    }
 
-  /* ── Game screen ── */
-  #screen-game {
-    gap: 0;
-    justify-content: space-between;
-    padding: 1.5rem;
-  }
+    .hero-points div {
+      padding: 12px 14px;
+      border-radius: 16px;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      color: #d5e3f4;
+    }
 
-  .game-top {
-    width: 100%;
-    max-width: 420px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 1.5rem;
-  }
+    .login-panel {
+      padding: 24px;
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.02));
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+      justify-content: space-between;
+    }
 
-  .track-counter {
-    font-family: 'DM Mono', monospace;
-    font-size: 13px;
-    color: var(--text-muted);
-  }
+    .panel-copy {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
 
-  .game-card {
-    background: var(--card-bg);
-    border: 1px solid var(--border);
-    border-radius: 20px;
-    width: 100%;
-    max-width: 420px;
-    padding: 2rem 2rem 1.5rem;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 1.5rem;
-    flex: 1;
-    justify-content: center;
-  }
+    .panel-copy h2 {
+      font-size: 1.5rem;
+      letter-spacing: -0.03em;
+    }
 
-  .now-playing {
-    width: 100%;
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 10px 14px;
-    background: rgba(29,185,84,0.1);
-    border: 1px solid rgba(29,185,84,0.2);
-    border-radius: 10px;
-  }
+    .panel-copy p {
+      color: var(--muted);
+      line-height: 1.55;
+    }
 
-  .now-playing-dot {
-    width: 8px;
-    height: 8px;
-    background: var(--green);
-    border-radius: 50%;
-    animation: pulse 1.5s infinite;
-    flex-shrink: 0;
-  }
+    .form-row {
+      display: grid;
+      gap: 8px;
+    }
 
-  @keyframes pulse {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.3; }
-  }
+    .input-label {
+      color: #b8c7db;
+    }
 
-  .now-playing-text {
-    font-size: 13px;
-    color: var(--green);
-    font-family: 'DM Mono', monospace;
-  }
+    .field,
+    .year-input {
+      width: 100%;
+      border-radius: 16px;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      background: rgba(255, 255, 255, 0.05);
+      color: var(--text);
+      padding: 14px 16px;
+      outline: none;
+      transition: border-color 0.18s ease, transform 0.18s ease;
+    }
 
-  .player-status {
-    font-size: 13px;
-    color: var(--text-muted);
-    font-family: 'DM Mono', monospace;
-    text-align: center;
-  }
+    .field:focus,
+    .year-input:focus {
+      border-color: rgba(124, 228, 255, 0.7);
+      transform: translateY(-1px);
+    }
 
-  .play-btn {
-    width: 72px;
-    height: 72px;
-    border-radius: 50%;
-    background: var(--green);
-    border: none;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: transform 0.15s, opacity 0.15s;
-  }
-  .play-btn:hover { opacity: 0.88; transform: scale(1.04); }
-  .play-btn:active { transform: scale(0.96); }
-  .play-btn svg { width: 28px; height: 28px; fill: #000; margin-left: 3px; }
-  .play-btn.playing svg.icon-play { display: none; }
-  .play-btn:not(.playing) svg.icon-pause { display: none; }
+    .btn-row {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
 
-  .divider {
-    width: 100%;
-    height: 1px;
-    background: var(--border);
-  }
+    .btn {
+      appearance: none;
+      border: 0;
+      border-radius: 999px;
+      padding: 14px 20px;
+      cursor: pointer;
+      transition: transform 0.16s ease, opacity 0.16s ease, background 0.16s ease;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      min-height: 52px;
+      font-weight: 700;
+    }
 
-  /* Reveal area */
-  .reveal-area { width: 100%; }
+    .btn:hover {
+      transform: translateY(-1px);
+    }
 
-  .reveal-btn-main {
-    width: 100%;
-    padding: 13px;
-    border-radius: 10px;
-    background: transparent;
-    border: 1px solid var(--border);
-    color: var(--white);
-    font-family: 'DM Sans', sans-serif;
-    font-size: 15px;
-    cursor: pointer;
-    transition: border-color 0.15s, background 0.15s;
-  }
-  .reveal-btn-main:hover { border-color: rgba(255,255,255,0.3); background: rgba(255,255,255,0.04); }
+    .btn:active {
+      transform: translateY(0);
+    }
 
-  .song-info {
-    display: none;
-    width: 100%;
-  }
-  .song-info.visible { display: block; }
+    .btn-primary {
+      background: linear-gradient(135deg, var(--green) 0%, #6df29e 100%);
+      color: #05110a;
+    }
 
-  .info-row {
-    display: flex;
-    justify-content: space-between;
-    align-items: baseline;
-    padding: 10px 0;
-    border-bottom: 1px solid var(--border);
-  }
-  .info-row:last-child { border-bottom: none; }
-  .info-key {
-    font-size: 11px;
-    color: var(--text-muted);
-    font-family: 'DM Mono', monospace;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-  }
-  .info-val {
-    font-size: 15px;
-    font-weight: 500;
-    text-align: right;
-    max-width: 65%;
-  }
-  .info-year {
-    font-family: 'DM Mono', monospace;
-    font-size: 26px;
-    font-weight: 500;
-    color: var(--green);
-  }
+    .btn-secondary {
+      background: rgba(255, 255, 255, 0.07);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      color: var(--text);
+    }
 
-  .game-nav {
-    width: 100%;
-    max-width: 420px;
-    display: flex;
-    gap: 10px;
-    margin-top: 1.5rem;
-  }
-  .game-nav button { flex: 1; }
+    .btn-danger {
+      background: rgba(255, 143, 143, 0.13);
+      border: 1px solid rgba(255, 143, 143, 0.3);
+      color: #ffdada;
+    }
 
-  /* ── Done screen ── */
-  #screen-done h2 {
-    font-family: 'DM Mono', monospace;
-    font-size: clamp(1.5rem, 6vw, 2.5rem);
-    font-weight: 500;
-    margin-bottom: 0.5rem;
-  }
-  #screen-done p {
-    color: var(--text-muted);
-    margin-bottom: 2rem;
-  }
+    .helper,
+    .status,
+    .warning,
+    .small-note {
+      color: var(--muted);
+      line-height: 1.6;
+      font-size: 0.95rem;
+    }
 
-  /* ── Error ── */
-  .error-msg {
-    font-size: 13px;
-    color: #ff6b6b;
-    margin-top: 0.75rem;
-    font-family: 'DM Mono', monospace;
-    display: none;
-  }
-  .error-msg.visible { display: block; }
+    .warning {
+      color: #ffd0d0;
+    }
 
-  .progress-dots {
-    display: flex;
-    gap: 6px;
-    justify-content: center;
-  }
-  .dot {
-    width: 6px; height: 6px;
-    border-radius: 50%;
-    background: var(--border);
-    transition: background 0.2s;
-  }
-  .dot.done { background: var(--green); }
-  .dot.current { background: var(--white); }
-</style>
+    .status {
+      min-height: 24px;
+    }
+
+    .host-grid {
+      display: grid;
+      grid-template-columns: 0.95fr 1.05fr;
+      gap: 20px;
+    }
+
+    .host-grid > section {
+      padding: 24px;
+    }
+
+    .host-panel {
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+    }
+
+    .host-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+
+    .host-header h2 {
+      font-size: clamp(1.8rem, 3vw, 2.6rem);
+      letter-spacing: -0.04em;
+    }
+
+    .host-header p {
+      color: var(--muted);
+      line-height: 1.55;
+      max-width: 52ch;
+    }
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .stat {
+      border-radius: 18px;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      background: rgba(255, 255, 255, 0.04);
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .stat strong {
+      font-size: 1.6rem;
+      letter-spacing: -0.04em;
+    }
+
+    .qr-card {
+      display: grid;
+      justify-items: center;
+      gap: 16px;
+      text-align: center;
+      padding: 20px;
+      border-radius: 22px;
+      background:
+        radial-gradient(circle at top, rgba(30, 215, 96, 0.16), transparent 40%),
+        rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    #qr-code {
+      width: 100%;
+      max-width: 280px;
+      aspect-ratio: 1;
+      display: grid;
+      place-items: center;
+      background: white;
+      border-radius: 20px;
+      padding: 16px;
+      overflow: hidden;
+    }
+
+    #qr-code canvas,
+    #qr-code img {
+      width: 100%;
+      height: auto;
+      display: block;
+    }
+
+    .pill-row {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .pill {
+      padding: 8px 12px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      color: #d7e7fa;
+    }
+
+    .guess-panel {
+      display: grid;
+      gap: 16px;
+      padding: 20px;
+      border-radius: 22px;
+      background: rgba(255, 255, 255, 0.035);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .guess-row {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 12px;
+    }
+
+    .reveal-card {
+      display: none;
+      padding: 20px;
+      border-radius: 22px;
+      background: linear-gradient(180deg, rgba(124, 228, 255, 0.09), rgba(255, 255, 255, 0.03));
+      border: 1px solid rgba(124, 228, 255, 0.2);
+      gap: 14px;
+    }
+
+    .reveal-card.visible {
+      display: grid;
+    }
+
+    .reveal-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .reveal-item {
+      padding: 16px;
+      border-radius: 16px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .reveal-value {
+      margin-top: 8px;
+      font-size: 1.05rem;
+      font-weight: 700;
+      word-break: break-word;
+    }
+
+    .year-big {
+      color: var(--green);
+      font-size: 2.2rem;
+      line-height: 1;
+      letter-spacing: -0.05em;
+    }
+
+    .cover-card {
+      display: grid;
+      gap: 18px;
+    }
+
+    .cover-box {
+      position: relative;
+      aspect-ratio: 1;
+      border-radius: 26px;
+      overflow: hidden;
+      background:
+        radial-gradient(circle at top, rgba(30, 215, 96, 0.22), transparent 34%),
+        linear-gradient(145deg, #1a2535 0%, #0f1723 100%);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      min-height: 280px;
+      display: grid;
+      place-items: center;
+    }
+
+    .cover-box img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      opacity: 0.16;
+      filter: blur(10px) saturate(0.7);
+      transform: scale(1.08);
+    }
+
+    .cover-mask {
+      position: absolute;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      padding: 28px;
+      text-align: center;
+      background:
+        linear-gradient(180deg, rgba(6, 10, 18, 0.12), rgba(6, 10, 18, 0.82)),
+        repeating-linear-gradient(
+          -45deg,
+          rgba(255, 255, 255, 0.03) 0 12px,
+          rgba(255, 255, 255, 0.015) 12px 24px
+        );
+    }
+
+    .cover-mask strong {
+      font-size: clamp(2.8rem, 8vw, 4.8rem);
+      line-height: 0.9;
+      letter-spacing: -0.06em;
+      max-width: 6ch;
+    }
+
+    .cover-mask span {
+      display: block;
+      margin-top: 14px;
+      color: #d5e5f6;
+      max-width: 24ch;
+      line-height: 1.5;
+    }
+
+    .round-actions {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .empty-state {
+      display: grid;
+      place-items: center;
+      text-align: center;
+      padding: 36px;
+      border-radius: 24px;
+      border: 1px dashed rgba(255, 255, 255, 0.16);
+      background: rgba(255, 255, 255, 0.03);
+      color: var(--muted);
+      min-height: 260px;
+    }
+
+    .mobile-wrap {
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      padding: 24px 16px;
+    }
+
+    .mobile-card {
+      width: min(560px, 100%);
+      padding: 24px;
+      display: grid;
+      gap: 18px;
+    }
+
+    .mobile-card h2 {
+      font-size: clamp(2rem, 10vw, 3.4rem);
+      line-height: 0.92;
+      letter-spacing: -0.06em;
+    }
+
+    .mobile-player {
+      display: grid;
+      gap: 14px;
+      border-radius: 22px;
+      padding: 18px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    audio {
+      width: 100%;
+    }
+
+    .mobile-reveal {
+      display: none;
+      gap: 12px;
+      padding: 18px;
+      border-radius: 20px;
+      background: rgba(30, 215, 96, 0.08);
+      border: 1px solid rgba(30, 215, 96, 0.18);
+    }
+
+    .mobile-reveal.visible {
+      display: grid;
+    }
+
+    .mobile-meta {
+      display: grid;
+      gap: 10px;
+    }
+
+    .mobile-meta div {
+      padding: 14px;
+      border-radius: 16px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .mobile-footer {
+      color: var(--muted);
+      font-size: 0.92rem;
+      line-height: 1.6;
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    @media (max-width: 920px) {
+      .hero,
+      .host-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .hero {
+        padding: 24px;
+      }
+
+      .stats,
+      .reveal-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .guess-row {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
 </head>
 <body>
-
-<!-- ── LOGIN ── -->
-<div id="screen-login" class="screen active">
-  <h1>hitster</h1>
-  <p>Raad het jaar van het nummer</p>
-  <button class="btn btn-spotify" onclick="startLogin()">
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.301 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.78.241 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.601.18-1.2.72-1.381 4.26-1.26 11.28-1.02 15.721 1.621.539.3.719 1.02.419 1.56-.299.421-1.02.599-1.559.3z"/></svg>
-    Inloggen met Spotify
-  </button>
-  <div style="margin-top: 1rem;">
-    <button class="btn btn-ghost" onclick="showSetup()">Eigen Spotify app instellen</button>
-  </div>
-</div>
-
-<!-- ── SETUP ── -->
-<div id="screen-setup" class="screen">
-  <h2>Spotify app instellen</h2>
-  <div class="setup-box">
-    <label>Client ID</label>
-    <input type="text" id="client-id" placeholder="jouw_client_id" />
-    <label>Redirect URI</label>
-    <input type="text" id="redirect-uri" placeholder="http://localhost:8080" />
-    <div id="setup-error" class="error-msg"></div>
-    <button class="btn btn-spotify" style="width:100%; justify-content:center; margin-top:0.5rem;" onclick="saveSetup()">Opslaan &amp; inloggen</button>
-    <p class="setup-note">
-      Maak een gratis app aan op
-      <a href="https://developer.spotify.com/dashboard" target="_blank">developer.spotify.com</a>.
-      Voeg je redirect URI toe onder "Edit settings". Vereist een Spotify Premium account voor afspelen.
-    </p>
-  </div>
-  <button class="btn btn-ghost" style="margin-top:1rem;" onclick="showScreen('screen-login')">← Terug</button>
-</div>
-
-<!-- ── GAME ── -->
-<div id="screen-game" class="screen">
-  <div class="game-top">
-    <span class="track-counter" id="track-counter">1 / 10</span>
-    <div class="progress-dots" id="progress-dots"></div>
-    <button class="btn btn-ghost" style="padding:6px 12px;font-size:13px;" onclick="logout()">Stop</button>
-  </div>
-
-  <div class="game-card">
-    <div class="now-playing" id="now-playing" style="display:none;">
-      <div class="now-playing-dot"></div>
-      <span class="now-playing-text">speelt af</span>
-    </div>
-
-    <button class="play-btn" id="play-btn" onclick="togglePlay()">
-      <svg class="icon-play" viewBox="0 0 24 24"><polygon points="5,3 19,12 5,21"/></svg>
-      <svg class="icon-pause" viewBox="0 0 24 24"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
-    </button>
-
-    <p class="player-status" id="player-status">Druk op play om te starten</p>
-
-    <div class="divider"></div>
-
-    <div class="reveal-area">
-      <button class="reveal-btn-main" id="reveal-btn" onclick="revealSong()">Onthul het nummer</button>
-      <div class="song-info" id="song-info">
-        <div class="info-row">
-          <span class="info-key">Titel</span>
-          <span class="info-val" id="info-title">—</span>
+  <div id="screen-login" class="screen active">
+    <div class="shell">
+      <section class="hero">
+        <div class="hero-copy">
+          <div class="eyebrow">QR party game</div>
+          <h1>Hitster-achtige spelpagina met Spotify.</h1>
+          <p>
+            Log in, laat een QR-code zien, scan die met een telefoon en speel een nummerfragment af zonder zichtbare metadata.
+            Op de host vul je het releasejaar in, onthul je artiest, titel en jaartal, en ga je direct door naar de volgende ronde.
+          </p>
+          <div class="hero-points">
+            <div>Hostmodus na login met automatisch gegenereerde QR-code per ronde.</div>
+            <div>Telefoonmodus zonder songinfo tot je op onthullen drukt.</div>
+            <div>Gebouwd als statische pagina voor GitHub Pages, zonder server.</div>
+          </div>
         </div>
-        <div class="info-row">
-          <span class="info-key">Artiest</span>
-          <span class="info-val" id="info-artist">—</span>
+
+        <div class="login-panel">
+          <div class="panel-copy">
+            <div class="kicker">Spotify setup</div>
+            <h2>Start met jouw appgegevens</h2>
+            <p>Je Client ID is alvast ingevuld. De redirect staat standaard op je GitHub Pages-locatie.</p>
+          </div>
+
+          <div class="form-row">
+            <label class="input-label" for="client-id">Client ID</label>
+            <input class="field" id="client-id" type="text" autocomplete="off">
+          </div>
+
+          <div class="form-row">
+            <label class="input-label" for="redirect-uri">Redirect URI</label>
+            <input class="field" id="redirect-uri" type="url" autocomplete="off">
+          </div>
+
+          <div class="form-row">
+            <label class="input-label" for="deck-size">Aantal rondes</label>
+            <select class="field" id="deck-size">
+              <option value="5">5 nummers</option>
+              <option value="10" selected>10 nummers</option>
+              <option value="15">15 nummers</option>
+            </select>
+          </div>
+
+          <div class="btn-row">
+            <button id="login-btn" class="btn btn-primary">Inloggen met Spotify</button>
+            <button id="reset-btn" class="btn btn-secondary" type="button">Reset gegevens</button>
+          </div>
+
+          <div id="login-status" class="status"></div>
+          <div class="small-note">
+            Zet in het Spotify Dashboard exact deze redirect URI bij je app:
+            <strong>https://avejohnb.github.io/hitster/</strong>
+          </div>
         </div>
-        <div class="info-row">
-          <span class="info-key">Jaar</span>
-          <span class="info-year" id="info-year">—</span>
-        </div>
-      </div>
+      </section>
     </div>
   </div>
 
-  <div class="game-nav">
-    <button class="btn btn-outline" onclick="prevTrack()">← Vorige</button>
-    <button class="btn btn-outline" onclick="nextTrack()">Volgende →</button>
+  <div id="screen-host" class="screen">
+    <div class="shell host-grid">
+      <section class="host-panel">
+        <div class="host-header">
+          <div>
+            <div class="eyebrow">Hostmodus</div>
+            <h2>Scan, luister, gok en onthul.</h2>
+            <p>De telefoon krijgt alleen de fragmentspeler. De host ziet het antwoord pas na onthullen.</p>
+          </div>
+          <div class="btn-row">
+            <button id="logout-btn" class="btn btn-secondary" type="button">Uitloggen</button>
+            <button id="new-deck-btn" class="btn btn-secondary" type="button">Nieuwe deck</button>
+          </div>
+        </div>
+
+        <div class="stats">
+          <div class="stat">
+            <span class="stat-label">Ronde</span>
+            <strong id="round-label">1 / 10</strong>
+          </div>
+          <div class="stat">
+            <span class="stat-label">Deck</span>
+            <strong id="deck-label">Laden...</strong>
+          </div>
+          <div class="stat">
+            <span class="stat-label">Voorbeeld</span>
+            <strong id="preview-label">Zoeken...</strong>
+          </div>
+        </div>
+
+        <div id="qr-panel" class="qr-card">
+          <div class="kicker">QR voor telefoon</div>
+          <div id="qr-code"></div>
+          <div id="qr-hint" class="helper">QR-code wordt opgebouwd.</div>
+          <div class="pill-row">
+            <div class="pill" id="phone-url-pill">Telefoonmodus</div>
+            <div class="pill">Geen songinfo zichtbaar voor de scanner</div>
+          </div>
+        </div>
+
+        <div class="guess-panel">
+          <div>
+            <div class="kicker">Jouw gok</div>
+            <p class="helper">Vul het releasejaar in. Daarna kun je het antwoord tonen en meteen verder naar de volgende track.</p>
+          </div>
+
+          <div class="guess-row">
+            <input id="year-guess" class="year-input" type="number" min="1900" max="2099" placeholder="Bijv. 1998">
+            <button id="reveal-btn" class="btn btn-primary" type="button">Onthul nummer</button>
+          </div>
+
+          <div id="guess-feedback" class="status"></div>
+
+          <div id="reveal-card" class="reveal-card">
+            <div class="kicker">Antwoord</div>
+            <div class="reveal-grid">
+              <div class="reveal-item">
+                <div class="meta-label">Jaar</div>
+                <div id="answer-year" class="reveal-value year-big">-</div>
+              </div>
+              <div class="reveal-item">
+                <div class="meta-label">Artiest</div>
+                <div id="answer-artist" class="reveal-value">-</div>
+              </div>
+              <div class="reveal-item">
+                <div class="meta-label">Nummer</div>
+                <div id="answer-title" class="reveal-value">-</div>
+              </div>
+            </div>
+            <div id="answer-extra" class="helper"></div>
+          </div>
+
+          <div class="round-actions">
+            <button id="next-btn" class="btn btn-secondary" type="button">Volgende QR-code</button>
+            <button id="copy-link-btn" class="btn btn-secondary" type="button">Kopieer telefoonlink</button>
+          </div>
+        </div>
+
+        <div id="host-status" class="status"></div>
+      </section>
+
+      <section class="cover-card">
+        <div id="cover-view" class="cover-box">
+          <div class="cover-mask">
+            <div>
+              <strong>Luister en plaats in de tijd.</strong>
+              <span>De hoes en metadata blijven verborgen tot jij het antwoord onthult.</span>
+            </div>
+          </div>
+        </div>
+
+        <div id="empty-view" class="empty-state hidden">
+          <div>
+            <div class="kicker">Geen deck</div>
+            <p>Ik heb niet genoeg tracks met een Spotify-preview gevonden. Maak een nieuwe deck of controleer je login.</p>
+          </div>
+        </div>
+      </section>
+    </div>
   </div>
-</div>
 
-<!-- ── DONE ── -->
-<div id="screen-done" class="screen">
-  <h2>Alle nummers gehad!</h2>
-  <p>10 van de 10 gespeeld</p>
-  <button class="btn btn-outline" onclick="restartGame()">Opnieuw spelen</button>
-  <button class="btn btn-ghost" style="margin-top:0.5rem;" onclick="logout()">Uitloggen</button>
-</div>
+  <div id="screen-mobile" class="screen">
+    <div class="mobile-wrap">
+      <section class="mobile-card">
+        <div>
+          <div class="eyebrow">Telefoonmodus</div>
+          <h2>Luister zonder spoilers.</h2>
+        </div>
 
-<script src="https://sdk.scdn.co/spotify-player.js"></script>
-<script>
-const SONGS = [
-  { title: "Billie Jean",                         artist: "Michael Jackson", year: 1983, uri: "spotify:track:5ChkMS8OtdzJeqyybCc9R5" },
-  { title: "Every Little Thing She Does Is Magic", artist: "The Police",      year: 1981, uri: "spotify:track:44aTAUBF0g6sMkMNE8I5kd" },
-  { title: "What's Love Got to Do with It",        artist: "Tina Turner",     year: 1984, uri: "spotify:track:3ErsOxqe2RmXkR65wkygDz" },
-  { title: "Wake Me Up Before You Go-Go",          artist: "Wham!",            year: 1984, uri: "spotify:track:0ikz6tENMONtK6qGkOrU3c" },
-  { title: "Like a Virgin",                        artist: "Madonna",          year: 1984, uri: "spotify:track:1ZPlNanZsJSPK5h9YZZFbZ" },
-  { title: "Don't You (Forget About Me)",          artist: "Simple Minds",     year: 1985, uri: "spotify:track:3fH4KjXFYMmljxrcGrbPj9" },
-  { title: "Take On Me",                           artist: "A-ha",             year: 1985, uri: "spotify:track:2WfaOiMkCvy7F5fcp2zZ8L" },
-  { title: "Bad",                                  artist: "Michael Jackson",  year: 1987, uri: "spotify:track:5lWFrW5T3JtxVCLDb7etPu" },
-  { title: "Love Shack",                           artist: "The B-52's",       year: 1989, uri: "spotify:track:4W4wYHtsrgDiivRASVOINL" },
-  { title: "Girls Just Want to Have Fun",          artist: "Cyndi Lauper",     year: 1983, uri: "spotify:track:4y1LsJpmMti1PfRQV9AWWe" }
-];
+        <p id="mobile-intro" class="helper">Je ziet hier alleen de speler. Eerst luisteren, dan pas onthullen.</p>
 
-const SCOPES = [
-  'streaming',
-  'user-read-email',
-  'user-read-private',
-  'user-read-playback-state',
-  'user-modify-playback-state'
-].join(' ');
+        <div class="mobile-player">
+          <audio id="mobile-audio" controls playsinline preload="none"></audio>
+          <button id="mobile-play-btn" class="btn btn-primary" type="button">Speel fragment</button>
+          <div id="mobile-status" class="status"></div>
+        </div>
 
-let CLIENT_ID = localStorage.getItem('hitster_client_id') || '';
-let REDIRECT_URI = localStorage.getItem('hitster_redirect_uri') || window.location.origin + window.location.pathname;
-let token = null;
-let player = null;
-let deviceId = null;
-let cur = 0;
-let isPlaying = false;
-let revealed = new Array(SONGS.length).fill(false);
+        <div class="btn-row">
+          <button id="mobile-reveal-btn" class="btn btn-secondary" type="button">Toon songinfo</button>
+          <button id="mobile-hide-btn" class="btn btn-secondary hidden" type="button">Verberg info weer</button>
+        </div>
 
-function showScreen(id) {
-  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-  document.getElementById(id).classList.add('active');
-}
+        <div id="mobile-reveal" class="mobile-reveal">
+          <div class="kicker">Antwoord</div>
+          <div class="mobile-meta">
+            <div><span class="meta-label">Jaar</span><br><strong id="mobile-year">-</strong></div>
+            <div><span class="meta-label">Artiest</span><br><strong id="mobile-artist">-</strong></div>
+            <div><span class="meta-label">Nummer</span><br><strong id="mobile-title">-</strong></div>
+          </div>
+        </div>
 
-function showSetup() {
-  document.getElementById('client-id').value = CLIENT_ID;
-  document.getElementById('redirect-uri').value = REDIRECT_URI;
-  showScreen('screen-setup');
-}
+        <div class="mobile-footer">
+          Dit scherm is bedoeld voor de speler die scant. De host houdt het score- en rondeoverzicht bij.
+        </div>
+      </section>
+    </div>
+  </div>
 
-function saveSetup() {
-  const cid = document.getElementById('client-id').value.trim();
-  const ruri = document.getElementById('redirect-uri').value.trim();
-  const err = document.getElementById('setup-error');
-  if (!cid) { err.textContent = 'Client ID is verplicht'; err.classList.add('visible'); return; }
-  err.classList.remove('visible');
-  CLIENT_ID = cid; REDIRECT_URI = ruri;
-  localStorage.setItem('hitster_client_id', cid);
-  localStorage.setItem('hitster_redirect_uri', ruri);
-  startLogin();
-}
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <script>
+    const DEFAULT_CLIENT_ID = "aa73d66f565e4f28840c017cf439e73a";
+    const DEFAULT_REDIRECT_URI = "https://avejohnb.github.io/hitster/";
+    const AUTH_ENDPOINT = "https://accounts.spotify.com/authorize";
+    const TOKEN_ENDPOINT = "https://accounts.spotify.com/api/token";
+    const API_BASE = "https://api.spotify.com/v1";
+    const STORAGE_PREFIX = "hitster_qr_";
+    const TRACK_POOL = [
+      "3n3Ppam7vgaVa1iaRUc9Lp","7ouMYWpwJ422jRcDASZB7P","2takcwOaAZWiXQijPHIx7B","4cOdK2wGLETKBW3PvgPWqT",
+      "1301WleyT98MSxVHPZCA6M","2dLLR6qlu5UJ5gk0dKz0h3","0VjIjW4GlUZAMYd2vXMi3b","1mea3bSkSGXuIRvnydlB5b",
+      "4uLU6hMCjMI75M1A2tKUQC","6habFhsOp2NvshLv26DqMb","6DCZcSspjsKoFjzjrWoCd","5CtI0qwDJkDQGwXD1H1cLb",
+      "2RlgNHKcydI9sayD2Df2xp","0eGsygTp906u18L0Oimnem","2X485T9Z5Ly0xyaghN73ed","4VqPOruhp5EdPBeR92t6lQ",
+      "3AJwUDP919kvQ9QcozQPxg","7BKLCZ1jbUBVqRi2FVlTVw","0TK2YIli7K1leLovkQiNik","2b8fOow8UzyDFAE27YhOZM",
+      "7lQ8MOhq6IN2w8EYcFNSUk","1zB4vmk8tFRmM9UULNzbLB","0ofHAoxe9vBkTCp2UQIavz","3AhXZa8sUQht0UEdBJgpGc",
+      "2EEeOnHehOozLq4aS0n6SL","0Svkvt5I79wficMFgaqEQJ","1lDWb6b6ieDQ2xT7ewTC3G","0VXA6rj31VnZwUwWwsQbfe",
+      "4c2xt1trwYZpMqPWY35Xi9","5ghIJDpPoe3CfHMGu71E6T"
+    ];
 
-function startLogin() {
-  if (!CLIENT_ID) { showSetup(); return; }
-  const state = Math.random().toString(36).substring(2);
-  localStorage.setItem('hitster_state', state);
-  const params = new URLSearchParams({
-    response_type: 'token',
-    client_id: CLIENT_ID,
-    scope: SCOPES,
-    redirect_uri: REDIRECT_URI,
-    state: state,
-    show_dialog: 'false'
-  });
-  window.location = 'https://accounts.spotify.com/authorize?' + params;
-}
+    const appState = {
+      accessToken: null,
+      deck: [],
+      currentIndex: 0,
+      revealed: false,
+      deckSize: 10,
+      currentPhoneUrl: "",
+      qrCode: null
+    };
 
-function handleCallback() {
-  const hash = window.location.hash.substring(1);
-  const params = new URLSearchParams(hash);
-  if (params.get('access_token')) {
-    token = params.get('access_token');
-    localStorage.setItem('hitster_token', token);
-    window.history.replaceState({}, '', window.location.pathname);
-    initPlayer();
-  }
-}
+    const loginScreen = document.getElementById("screen-login");
+    const hostScreen = document.getElementById("screen-host");
+    const mobileScreen = document.getElementById("screen-mobile");
+    const loginStatus = document.getElementById("login-status");
+    const hostStatus = document.getElementById("host-status");
+    const clientIdInput = document.getElementById("client-id");
+    const redirectUriInput = document.getElementById("redirect-uri");
+    const deckSizeSelect = document.getElementById("deck-size");
+    const qrHint = document.getElementById("qr-hint");
+    const qrCodeEl = document.getElementById("qr-code");
+    const roundLabel = document.getElementById("round-label");
+    const deckLabel = document.getElementById("deck-label");
+    const previewLabel = document.getElementById("preview-label");
+    const yearGuessInput = document.getElementById("year-guess");
+    const guessFeedback = document.getElementById("guess-feedback");
+    const revealCard = document.getElementById("reveal-card");
+    const answerYear = document.getElementById("answer-year");
+    const answerArtist = document.getElementById("answer-artist");
+    const answerTitle = document.getElementById("answer-title");
+    const answerExtra = document.getElementById("answer-extra");
+    const phoneUrlPill = document.getElementById("phone-url-pill");
+    const coverView = document.getElementById("cover-view");
+    const emptyView = document.getElementById("empty-view");
+    const mobileAudio = document.getElementById("mobile-audio");
+    const mobileStatus = document.getElementById("mobile-status");
+    const mobileReveal = document.getElementById("mobile-reveal");
+    const mobileYear = document.getElementById("mobile-year");
+    const mobileArtist = document.getElementById("mobile-artist");
+    const mobileTitle = document.getElementById("mobile-title");
+    const mobileHideBtn = document.getElementById("mobile-hide-btn");
 
-function logout() {
-  if (player) player.disconnect();
-  token = null; deviceId = null; player = null;
-  localStorage.removeItem('hitster_token');
-  showScreen('screen-login');
-}
+    document.getElementById("login-btn").addEventListener("click", startLogin);
+    document.getElementById("reset-btn").addEventListener("click", resetStoredConfig);
+    document.getElementById("logout-btn").addEventListener("click", logout);
+    document.getElementById("new-deck-btn").addEventListener("click", buildDeck);
+    document.getElementById("reveal-btn").addEventListener("click", revealCurrentTrack);
+    document.getElementById("next-btn").addEventListener("click", nextRound);
+    document.getElementById("copy-link-btn").addEventListener("click", copyPhoneLink);
+    document.getElementById("mobile-play-btn").addEventListener("click", playMobilePreview);
+    document.getElementById("mobile-reveal-btn").addEventListener("click", toggleMobileReveal);
+    mobileHideBtn.addEventListener("click", hideMobileReveal);
 
-function initPlayer() {
-  showScreen('screen-game');
-  buildDots();
-  renderCard();
-  document.getElementById('player-status').textContent = 'Speler laden...';
+    init();
 
-  window.onSpotifyWebPlaybackSDKReady = () => {
-    player = new Spotify.Player({
-      name: 'Hitster',
-      getOAuthToken: cb => cb(token),
-      volume: 0.8
-    });
+    async function init() {
+      fillSavedConfig();
 
-    player.addListener('ready', ({ device_id }) => {
-      deviceId = device_id;
-      document.getElementById('player-status').textContent = 'Druk op play om te starten';
-    });
+      const params = new URLSearchParams(window.location.search);
+      if (params.get("mode") === "play" && params.get("track")) {
+        renderMobileMode(params.get("track"));
+        return;
+      }
 
-    player.addListener('not_ready', () => {
-      document.getElementById('player-status').textContent = 'Speler niet beschikbaar';
-    });
+      showScreen("screen-login");
 
-    player.addListener('player_state_changed', state => {
-      if (!state) return;
-      isPlaying = !state.paused;
-      const btn = document.getElementById('play-btn');
-      btn.classList.toggle('playing', isPlaying);
-      document.getElementById('now-playing').style.display = isPlaying ? 'flex' : 'none';
-      document.getElementById('player-status').textContent = isPlaying ? '' : 'Gepauzeerd';
-    });
+      try {
+        const code = params.get("code");
+        const state = params.get("state");
+        const expectedState = localStorage.getItem(STORAGE_PREFIX + "state");
 
-    player.addListener('authentication_error', () => {
-      document.getElementById('player-status').textContent = 'Auth fout — log opnieuw in';
-    });
+        if (code) {
+          if (!state || state !== expectedState) {
+            throw new Error("De Spotify login-state klopt niet meer. Start opnieuw.");
+          }
 
-    player.connect();
-  };
+          loginStatus.textContent = "Spotify-token ophalen...";
+          const token = await exchangeCodeForToken(code);
+          localStorage.setItem(STORAGE_PREFIX + "access_token", token);
+          appState.accessToken = token;
+          clearAuthParamsFromUrl();
+          await buildDeck();
+          return;
+        }
 
-  if (window.Spotify) {
-    window.onSpotifyWebPlaybackSDKReady();
-  }
-}
+        const storedToken = localStorage.getItem(STORAGE_PREFIX + "access_token");
+        if (storedToken) {
+          appState.accessToken = storedToken;
+          loginStatus.textContent = "Bestaande sessie gevonden. Deck laden...";
+          await buildDeck();
+        }
+      } catch (error) {
+        console.error(error);
+        loginStatus.textContent = error.message || "Inloggen mislukte.";
+        logout(false);
+      }
+    }
 
-async function playTrack(uri) {
-  if (!deviceId || !token) return;
-  await fetch(`https://api.spotify.com/v1/me/player/play?device_id=${deviceId}`, {
-    method: 'PUT',
-    headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ uris: [uri], position_ms: 0 })
-  });
-  isPlaying = true;
-  document.getElementById('play-btn').classList.add('playing');
-  document.getElementById('now-playing').style.display = 'flex';
-  document.getElementById('player-status').textContent = '';
-}
+    function fillSavedConfig() {
+      clientIdInput.value = localStorage.getItem(STORAGE_PREFIX + "client_id") || DEFAULT_CLIENT_ID;
+      redirectUriInput.value = localStorage.getItem(STORAGE_PREFIX + "redirect_uri") || DEFAULT_REDIRECT_URI;
+      deckSizeSelect.value = localStorage.getItem(STORAGE_PREFIX + "deck_size") || "10";
+    }
 
-async function togglePlay() {
-  if (!deviceId) { document.getElementById('player-status').textContent = 'Speler nog niet klaar...'; return; }
-  if (!isPlaying) {
-    await playTrack(SONGS[cur].uri);
-  } else {
-    player.pause();
-  }
-}
+    function saveConfig() {
+      localStorage.setItem(STORAGE_PREFIX + "client_id", clientIdInput.value.trim());
+      localStorage.setItem(STORAGE_PREFIX + "redirect_uri", redirectUriInput.value.trim());
+      localStorage.setItem(STORAGE_PREFIX + "deck_size", deckSizeSelect.value);
+    }
 
-function revealSong() {
-  revealed[cur] = true;
-  document.getElementById('reveal-btn').style.display = 'none';
-  document.getElementById('info-title').textContent = SONGS[cur].title;
-  document.getElementById('info-artist').textContent = SONGS[cur].artist;
-  document.getElementById('info-year').textContent = SONGS[cur].year;
-  document.getElementById('song-info').classList.add('visible');
-  buildDots();
-}
+    function resetStoredConfig() {
+      localStorage.removeItem(STORAGE_PREFIX + "client_id");
+      localStorage.removeItem(STORAGE_PREFIX + "redirect_uri");
+      localStorage.removeItem(STORAGE_PREFIX + "deck_size");
+      fillSavedConfig();
+      loginStatus.textContent = "Opgeslagen gegevens zijn teruggezet naar de standaardwaarden.";
+    }
 
-function renderCard() {
-  const total = SONGS.length;
-  document.getElementById('track-counter').textContent = `${cur + 1} / ${total}`;
-  const rev = revealed[cur];
-  document.getElementById('reveal-btn').style.display = rev ? 'none' : 'block';
-  const info = document.getElementById('song-info');
-  if (rev) {
-    info.classList.add('visible');
-    document.getElementById('info-title').textContent = SONGS[cur].title;
-    document.getElementById('info-artist').textContent = SONGS[cur].artist;
-    document.getElementById('info-year').textContent = SONGS[cur].year;
-  } else {
-    info.classList.remove('visible');
-  }
-  isPlaying = false;
-  document.getElementById('play-btn').classList.remove('playing');
-  document.getElementById('now-playing').style.display = 'none';
-  document.getElementById('player-status').textContent = 'Druk op play om te starten';
-  buildDots();
-}
+    async function startLogin() {
+      const clientId = clientIdInput.value.trim();
+      const redirectUri = redirectUriInput.value.trim();
+      const deckSize = deckSizeSelect.value;
 
-function prevTrack() {
-  if (cur > 0) { cur--; renderCard(); }
-}
+      if (!clientId) {
+        loginStatus.textContent = "Vul eerst een geldige Client ID in.";
+        return;
+      }
 
-function nextTrack() {
-  if (player) player.pause();
-  if (cur < SONGS.length - 1) { cur++; renderCard(); }
-  else { if (player) player.pause(); showScreen('screen-done'); }
-}
+      if (!redirectUri) {
+        loginStatus.textContent = "Vul eerst een geldige Redirect URI in.";
+        return;
+      }
 
-function buildDots() {
-  const el = document.getElementById('progress-dots');
-  el.innerHTML = SONGS.map((_, i) => {
-    const cls = i === cur ? 'dot current' : (revealed[i] ? 'dot done' : 'dot');
-    return `<div class="${cls}"></div>`;
-  }).join('');
-}
+      saveConfig();
 
-function restartGame() {
-  cur = 0; revealed.fill(false);
-  showScreen('screen-game');
-  renderCard();
-}
+      const verifier = generateRandomString(64);
+      const challenge = await generateCodeChallenge(verifier);
+      const state = generateRandomString(24);
 
-if (window.location.hash.includes('access_token')) {
-  handleCallback();
-} else {
-  const saved = localStorage.getItem('hitster_token');
-  if (saved) { token = saved; initPlayer(); }
-}
-</script>
+      localStorage.setItem(STORAGE_PREFIX + "verifier", verifier);
+      localStorage.setItem(STORAGE_PREFIX + "state", state);
+      localStorage.setItem(STORAGE_PREFIX + "deck_size", deckSize);
+
+      const authParams = new URLSearchParams({
+        client_id: clientId,
+        response_type: "code",
+        redirect_uri: redirectUri,
+        code_challenge_method: "S256",
+        code_challenge: challenge,
+        state: state
+      });
+
+      loginStatus.textContent = "Doorsturen naar Spotify...";
+      window.location.href = AUTH_ENDPOINT + "?" + authParams.toString();
+    }
+
+    async function exchangeCodeForToken(code) {
+      const clientId = localStorage.getItem(STORAGE_PREFIX + "client_id") || DEFAULT_CLIENT_ID;
+      const redirectUri = localStorage.getItem(STORAGE_PREFIX + "redirect_uri") || DEFAULT_REDIRECT_URI;
+      const verifier = localStorage.getItem(STORAGE_PREFIX + "verifier");
+
+      if (!verifier) {
+        throw new Error("De PKCE verifier ontbreekt. Start de login opnieuw.");
+      }
+
+      const body = new URLSearchParams({
+        client_id: clientId,
+        grant_type: "authorization_code",
+        code: code,
+        redirect_uri: redirectUri,
+        code_verifier: verifier
+      });
+
+      const response = await fetch(TOKEN_ENDPOINT, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded"
+        },
+        body: body.toString()
+      });
+
+      if (!response.ok) {
+        const text = await response.text();
+        throw new Error("Token ophalen mislukte: " + text);
+      }
+
+      const data = await response.json();
+      if (!data.access_token) {
+        throw new Error("Spotify gaf geen access token terug.");
+      }
+
+      return data.access_token;
+    }
+
+    async function buildDeck() {
+      if (!appState.accessToken) {
+        showScreen("screen-login");
+        return;
+      }
+
+      showScreen("screen-host");
+      hostStatus.textContent = "Tracks met previewfragmenten ophalen...";
+      deckLabel.textContent = "Laden...";
+      previewLabel.textContent = "Zoeken...";
+      emptyView.classList.add("hidden");
+      coverView.classList.remove("hidden");
+      revealCard.classList.remove("visible");
+      guessFeedback.textContent = "";
+
+      appState.deckSize = Number(localStorage.getItem(STORAGE_PREFIX + "deck_size") || deckSizeSelect.value || 10);
+      appState.currentIndex = 0;
+      appState.revealed = false;
+
+      try {
+        const tracks = await fetchTracks(TRACK_POOL);
+        const withPreview = shuffle(tracks.filter(hasUsablePreview));
+        const selected = withPreview.slice(0, appState.deckSize);
+
+        if (selected.length === 0) {
+          appState.deck = [];
+          renderEmptyDeck();
+          return;
+        }
+
+        appState.deck = selected.map(mapTrack);
+        deckLabel.textContent = appState.deck.length + " tracks";
+        previewLabel.textContent = appState.deck.length + " previews";
+        hostStatus.textContent = "Deck geladen. Laat de QR-code scannen voor ronde 1.";
+        renderCurrentRound();
+      } catch (error) {
+        console.error(error);
+        if (String(error.message || "").includes("401")) {
+          logout(false);
+          loginStatus.textContent = "Sessie verlopen. Log opnieuw in.";
+          return;
+        }
+        hostStatus.textContent = "Deck laden mislukte: " + (error.message || "onbekende fout");
+        renderEmptyDeck();
+      }
+    }
+
+    async function fetchTracks(ids) {
+      const chunks = [];
+      for (let index = 0; index < ids.length; index += 20) {
+        chunks.push(ids.slice(index, index + 20));
+      }
+
+      const tracks = [];
+      for (const chunk of chunks) {
+        const url = API_BASE + "/tracks?market=from_token&ids=" + encodeURIComponent(chunk.join(","));
+        const response = await fetch(url, {
+          headers: {
+            Authorization: "Bearer " + appState.accessToken
+          }
+        });
+
+        if (!response.ok) {
+          throw new Error("Spotify API fout " + response.status);
+        }
+
+        const data = await response.json();
+        tracks.push(...(data.tracks || []));
+      }
+
+      return tracks.filter(Boolean);
+    }
+
+    function hasUsablePreview(track) {
+      return Boolean(
+        track &&
+        track.preview_url &&
+        track.name &&
+        track.artists &&
+        track.artists.length &&
+        track.album &&
+        track.album.release_date
+      );
+    }
+
+    function mapTrack(track) {
+      const releaseYear = extractYear(track.album.release_date);
+      return {
+        id: track.id,
+        title: track.name,
+        artist: track.artists.map((artist) => artist.name).join(", "),
+        year: releaseYear,
+        previewUrl: track.preview_url,
+        albumImage: track.album.images && track.album.images[0] ? track.album.images[0].url : "",
+        spotifyUrl: track.external_urls ? track.external_urls.spotify : ""
+      };
+    }
+
+    function renderCurrentRound() {
+      const track = appState.deck[appState.currentIndex];
+      if (!track) {
+        renderFinishedState();
+        return;
+      }
+
+      appState.revealed = false;
+      revealCard.classList.remove("visible");
+      yearGuessInput.value = "";
+      guessFeedback.textContent = "";
+      roundLabel.textContent = (appState.currentIndex + 1) + " / " + appState.deck.length;
+      deckLabel.textContent = appState.deck.length + " tracks";
+      previewLabel.textContent = "Klaar";
+      hostStatus.textContent = "Ronde " + (appState.currentIndex + 1) + " staat klaar.";
+      renderMaskedCover(track);
+      renderQrCode(track);
+    }
+
+    function renderMaskedCover(track) {
+      coverView.innerHTML = "";
+      const img = document.createElement("img");
+      img.src = track.albumImage || "";
+      img.alt = "";
+
+      const mask = document.createElement("div");
+      mask.className = "cover-mask";
+      mask.innerHTML =
+        "<div>" +
+        "<strong>Ronde " + (appState.currentIndex + 1) + "</strong>" +
+        "<span>Scan de QR-code op een telefoon en luister zonder zichtbare titel of artiest.</span>" +
+        "</div>";
+
+      coverView.appendChild(img);
+      coverView.appendChild(mask);
+    }
+
+    function renderQrCode(track) {
+      const payload = {
+        title: track.title,
+        artist: track.artist,
+        year: track.year,
+        previewUrl: track.previewUrl,
+        spotifyUrl: track.spotifyUrl
+      };
+
+      const encoded = encodePayload(payload);
+      const phoneUrl = buildPhoneUrl(encoded);
+      appState.currentPhoneUrl = phoneUrl;
+
+      phoneUrlPill.textContent = "Telefoonlink klaar";
+      qrHint.textContent = "Scan deze code. De telefoongebruiker krijgt alleen een fragmentspeler en een optionele revealknop.";
+
+      qrCodeEl.innerHTML = "";
+      appState.qrCode = new QRCode(qrCodeEl, {
+        text: phoneUrl,
+        width: 280,
+        height: 280,
+        colorDark: "#111111",
+        colorLight: "#ffffff",
+        correctLevel: QRCode.CorrectLevel.M
+      });
+    }
+
+    function revealCurrentTrack() {
+      const track = appState.deck[appState.currentIndex];
+      if (!track) {
+        return;
+      }
+
+      appState.revealed = true;
+      revealCard.classList.add("visible");
+      answerYear.textContent = String(track.year);
+      answerArtist.textContent = track.artist;
+      answerTitle.textContent = track.title;
+
+      const guessValue = Number(yearGuessInput.value);
+      if (Number.isFinite(guessValue) && yearGuessInput.value.trim() !== "") {
+        const diff = Math.abs(track.year - guessValue);
+        if (diff === 0) {
+          guessFeedback.textContent = "Exact goed. Mooie hitster-plaatsing.";
+        } else {
+          guessFeedback.textContent = "Je zat er " + diff + " jaar naast.";
+        }
+        answerExtra.textContent = "Jouw gok: " + guessValue + ". Werkelijke releasejaar: " + track.year + ".";
+      } else {
+        guessFeedback.textContent = "Antwoord onthuld zonder jaargok.";
+        answerExtra.textContent = "Werkelijke releasejaar: " + track.year + ".";
+      }
+    }
+
+    function nextRound() {
+      if (appState.currentIndex < appState.deck.length - 1) {
+        appState.currentIndex += 1;
+        renderCurrentRound();
+        return;
+      }
+
+      renderFinishedState();
+    }
+
+    function renderFinishedState() {
+      revealCard.classList.remove("visible");
+      qrCodeEl.innerHTML = "";
+      roundLabel.textContent = appState.deck.length + " / " + appState.deck.length;
+      qrHint.textContent = "Deck afgerond. Maak een nieuwe deck om opnieuw te spelen.";
+      coverView.classList.add("hidden");
+      emptyView.classList.remove("hidden");
+      emptyView.innerHTML =
+        "<div>" +
+        "<div class='kicker'>Klaar</div>" +
+        "<p>Alle rondes zijn gespeeld. Klik op 'Nieuwe deck' om meteen opnieuw te beginnen.</p>" +
+        "</div>";
+      hostStatus.textContent = "Deck afgerond.";
+      guessFeedback.textContent = "";
+    }
+
+    function renderEmptyDeck() {
+      appState.deck = [];
+      qrCodeEl.innerHTML = "";
+      qrHint.textContent = "Nog geen speelbare tracks gevonden.";
+      roundLabel.textContent = "0 / 0";
+      deckLabel.textContent = "0 tracks";
+      previewLabel.textContent = "0 previews";
+      coverView.classList.add("hidden");
+      emptyView.classList.remove("hidden");
+      revealCard.classList.remove("visible");
+      guessFeedback.textContent = "";
+      answerExtra.textContent = "";
+    }
+
+    async function copyPhoneLink() {
+      if (!appState.currentPhoneUrl) {
+        hostStatus.textContent = "Er is nog geen telefoonlink voor deze ronde.";
+        return;
+      }
+
+      try {
+        await navigator.clipboard.writeText(appState.currentPhoneUrl);
+        hostStatus.textContent = "Telefoonlink gekopieerd.";
+      } catch (error) {
+        hostStatus.textContent = "Kopieren mislukte. Gebruik de QR-code of kopieer handmatig uit de adresbalk.";
+      }
+    }
+
+    function renderMobileMode(encodedTrack) {
+      showScreen("screen-mobile");
+      try {
+        const track = decodePayload(encodedTrack);
+        if (!track.previewUrl) {
+          throw new Error("Geen previewfragment beschikbaar voor deze track.");
+        }
+
+        mobileAudio.src = track.previewUrl;
+        mobileStatus.textContent = "Tik op afspelen om het fragment te horen.";
+        mobileYear.textContent = track.year || "-";
+        mobileArtist.textContent = track.artist || "-";
+        mobileTitle.textContent = track.title || "-";
+      } catch (error) {
+        mobileStatus.textContent = error.message || "Kon deze speelronde niet laden.";
+      }
+    }
+
+    async function playMobilePreview() {
+      try {
+        mobileAudio.currentTime = 0;
+        await mobileAudio.play();
+        mobileStatus.textContent = "Fragment speelt af.";
+      } catch (error) {
+        mobileStatus.textContent = "Autoplay werd geblokkeerd. Gebruik de audioknoppen hierboven.";
+      }
+    }
+
+    function toggleMobileReveal() {
+      mobileReveal.classList.add("visible");
+      mobileHideBtn.classList.remove("hidden");
+      mobileStatus.textContent = "Songinfo onthuld.";
+    }
+
+    function hideMobileReveal() {
+      mobileReveal.classList.remove("visible");
+      mobileHideBtn.classList.add("hidden");
+      mobileStatus.textContent = "Songinfo weer verborgen.";
+    }
+
+    function logout(clearMessage = true) {
+      appState.accessToken = null;
+      appState.deck = [];
+      appState.currentIndex = 0;
+      appState.currentPhoneUrl = "";
+      localStorage.removeItem(STORAGE_PREFIX + "access_token");
+      localStorage.removeItem(STORAGE_PREFIX + "verifier");
+      localStorage.removeItem(STORAGE_PREFIX + "state");
+      clearAuthParamsFromUrl();
+      showScreen("screen-login");
+      if (clearMessage) {
+        loginStatus.textContent = "Je bent uitgelogd.";
+      }
+    }
+
+    function buildPhoneUrl(encodedTrack) {
+      const url = new URL(window.location.origin + window.location.pathname);
+      url.searchParams.set("mode", "play");
+      url.searchParams.set("track", encodedTrack);
+      return url.toString();
+    }
+
+    function encodePayload(payload) {
+      const json = JSON.stringify(payload);
+      return toBase64Url(json);
+    }
+
+    function decodePayload(encoded) {
+      const json = fromBase64Url(encoded);
+      return JSON.parse(json);
+    }
+
+    function toBase64Url(value) {
+      return btoa(unescape(encodeURIComponent(value)))
+        .replace(/\+/g, "-")
+        .replace(/\//g, "_")
+        .replace(/=+$/g, "");
+    }
+
+    function fromBase64Url(value) {
+      const padded = value.replace(/-/g, "+").replace(/_/g, "/") + "=".repeat((4 - value.length % 4) % 4);
+      return decodeURIComponent(escape(atob(padded)));
+    }
+
+    function extractYear(releaseDate) {
+      const match = String(releaseDate).match(/^(\d{4})/);
+      return match ? Number(match[1]) : 0;
+    }
+
+    function generateRandomString(length) {
+      const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+      const array = new Uint8Array(length);
+      crypto.getRandomValues(array);
+      return Array.from(array, (value) => chars[value % chars.length]).join("");
+    }
+
+    async function generateCodeChallenge(verifier) {
+      const data = new TextEncoder().encode(verifier);
+      const digest = await crypto.subtle.digest("SHA-256", data);
+      const bytes = new Uint8Array(digest);
+      let binary = "";
+      for (const byte of bytes) {
+        binary += String.fromCharCode(byte);
+      }
+      return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
+    }
+
+    function shuffle(items) {
+      const copy = [...items];
+      for (let i = copy.length - 1; i > 0; i -= 1) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [copy[i], copy[j]] = [copy[j], copy[i]];
+      }
+      return copy;
+    }
+
+    function clearAuthParamsFromUrl() {
+      const url = new URL(window.location.href);
+      url.searchParams.delete("code");
+      url.searchParams.delete("state");
+      url.searchParams.delete("error");
+      window.history.replaceState({}, document.title, url.pathname + url.search + url.hash);
+    }
+
+    function showScreen(screenId) {
+      loginScreen.classList.remove("active");
+      hostScreen.classList.remove("active");
+      mobileScreen.classList.remove("active");
+      document.getElementById(screenId).classList.add("active");
+    }
+  </script>
 </body>
 </html>

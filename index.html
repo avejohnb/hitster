@@ -690,6 +690,7 @@
             <label class="input-label" for="playlist-sources">Spotify bron(nen)</label>
             <textarea class="field" id="playlist-sources" rows="5" spellcheck="false"></textarea>
           </div>
+          <div id="source-analysis-login" class="status"></div>
 
           <div class="btn-row">
             <button id="import-playlists-btn" class="btn btn-secondary" type="button">Importeer bron(nen)</button>
@@ -753,6 +754,7 @@
             <label class="input-label" for="playlist-sources-host">Spotify bron(nen)</label>
             <textarea class="field" id="playlist-sources-host" rows="4" spellcheck="false"></textarea>
           </div>
+          <div id="source-analysis-host" class="status"></div>
           <div class="btn-row">
             <button id="import-playlists-btn-host" class="btn btn-secondary" type="button">Importeer bron(nen)</button>
           </div>
@@ -879,7 +881,7 @@
   <script>
     const DEFAULT_CLIENT_ID = "aa73d66f565e4f28840c017cf439e73a";
     const DEFAULT_REDIRECT_URI = "https://avejohnb.github.io/hitster/";
-    const APP_VERSION = "v2026.03.31-13";
+    const APP_VERSION = "v2026.04.01-14";
     const AUTH_ENDPOINT = "https://accounts.spotify.com/authorize";
     const TOKEN_ENDPOINT = "https://accounts.spotify.com/api/token";
     const API_BASE = "https://api.spotify.com/v1";
@@ -958,6 +960,8 @@
     const mobileHideBtn = document.getElementById("mobile-hide-btn");
     const playlistSourcesInput = document.getElementById("playlist-sources");
     const playlistSourcesHostInput = document.getElementById("playlist-sources-host");
+    const sourceAnalysisLogin = document.getElementById("source-analysis-login");
+    const sourceAnalysisHost = document.getElementById("source-analysis-host");
     const buildBadgeLogin = document.getElementById("build-badge-login");
     const buildBadgeHost = document.getElementById("build-badge-host");
     const scannerPanel = document.getElementById("scanner-panel");
@@ -1071,6 +1075,7 @@
       redirectUriInput.value = storedRedirectUri || DEFAULT_REDIRECT_URI;
       playlistSourcesInput.value = storedPlaylistSources.trim() || DEFAULT_PLAYLIST_SOURCES;
       playlistSourcesHostInput.value = playlistSourcesInput.value;
+      updateSourceAnalysis();
       try {
         appState.importedTracks = JSON.parse(storedImportedTracks);
       } catch (error) {
@@ -1085,6 +1090,7 @@
       playlistSourcesInput.value = playlistSources;
       playlistSourcesHostInput.value = playlistSources;
       localStorage.setItem(STORAGE_PREFIX + "playlist_sources", playlistSources);
+      updateSourceAnalysis();
     }
 
     function resetStoredConfig() {
@@ -1096,6 +1102,7 @@
       loginStatus.textContent = "Opgeslagen gegevens zijn teruggezet naar de standaardwaarden.";
       importStatus.textContent = "";
       importStatusHost.textContent = "";
+      updateSourceAnalysis();
     }
 
     async function startLogin() {
@@ -2316,10 +2323,22 @@
     function wirePlaylistSourceSync() {
       const sync = (source, target) => {
         target.value = source.value;
+        updateSourceAnalysis();
       };
 
       playlistSourcesInput.addEventListener("input", () => sync(playlistSourcesInput, playlistSourcesHostInput));
       playlistSourcesHostInput.addEventListener("input", () => sync(playlistSourcesHostInput, playlistSourcesInput));
+    }
+
+    function updateSourceAnalysis() {
+      const value = (playlistSourcesInput.value || playlistSourcesHostInput.value || "").trim();
+      const parsed = parseSpotifySources(value);
+      const summary =
+        value
+          ? "Herkend in invoer: " + buildSourceSummary(parsed.playlistIds.length, parsed.trackIds.length) + "."
+          : "Nog geen Spotify bronnen ingevoerd.";
+      sourceAnalysisLogin.textContent = summary;
+      sourceAnalysisHost.textContent = summary;
     }
   </script>
 </body>

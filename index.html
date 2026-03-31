@@ -798,6 +798,7 @@
 
         <div class="mobile-player">
           <button id="mobile-play-btn" class="btn btn-primary" type="button">Activeer en speel</button>
+          <button id="mobile-stop-btn" class="btn btn-secondary" type="button">Pauzeer / stop</button>
           <div id="mobile-status" class="status"></div>
         </div>
 
@@ -839,6 +840,7 @@
     const API_BASE = "https://api.spotify.com/v1";
     const STORAGE_PREFIX = "hitster_qr_";
     const SEARCH_CHARS = "abcdefghijklmnopqrstuvwxyz0123456789";
+    const MIN_POPULARITY = 55;
     const SEARCH_TERMS = [
       "love", "night", "heart", "dance", "dream", "baby", "fire", "moon", "star", "summer",
       "blue", "gold", "wild", "radio", "girl", "boy", "light", "home", "street", "party"
@@ -910,6 +912,7 @@
     document.getElementById("next-btn").addEventListener("click", nextRound);
     document.getElementById("copy-link-btn").addEventListener("click", copyPhoneLink);
     document.getElementById("mobile-play-btn").addEventListener("click", playMobilePreview);
+    document.getElementById("mobile-stop-btn").addEventListener("click", stopMobilePlayback);
     document.getElementById("mobile-scan-btn").addEventListener("click", startQrScanner);
     document.getElementById("mobile-reveal-btn").addEventListener("click", toggleMobileReveal);
     document.getElementById("scanner-stop-btn").addEventListener("click", stopQrScanner);
@@ -1223,8 +1226,9 @@
     }
 
     function buildRandomSearchQuery(attempt) {
-      const yearStart = 1960 + Math.floor(Math.random() * 65);
-      const yearEnd = Math.min(yearStart + Math.floor(Math.random() * 8), 2025);
+      const currentYear = new Date().getFullYear();
+      const yearStart = 1950 + Math.floor(Math.random() * (currentYear - 1949));
+      const yearEnd = Math.min(yearStart + Math.floor(Math.random() * 6), currentYear);
       const randomChar = SEARCH_CHARS[Math.floor(Math.random() * SEARCH_CHARS.length)];
       const randomTerm = SEARCH_TERMS[Math.floor(Math.random() * SEARCH_TERMS.length)];
 
@@ -1248,6 +1252,8 @@
         track &&
         track.uri &&
         !track.is_local &&
+        typeof track.popularity === "number" &&
+        track.popularity >= MIN_POPULARITY &&
         track.name &&
         track.artists &&
         track.artists.length &&
@@ -1263,6 +1269,7 @@
         title: track.name,
         artist: track.artists.map((artist) => artist.name).join(", "),
         year: releaseYear,
+        popularity: track.popularity,
         uri: track.uri,
         previewUrl: track.preview_url,
         albumImage: track.album.images && track.album.images[0] ? track.album.images[0].url : "",
@@ -1454,6 +1461,26 @@
       } catch (error) {
         console.error(error);
         mobileStatus.textContent = error.message || "Spotify playback starten mislukte.";
+      }
+    }
+
+    async function stopMobilePlayback() {
+      try {
+        if (!mobileState.player) {
+          mobileStatus.textContent = "Er speelt nu geen actieve Spotify-speler.";
+          return;
+        }
+
+        await mobileState.player.pause();
+        try {
+          await mobileState.player.seek(0);
+        } catch (error) {
+          console.warn("Seek after pause failed", error);
+        }
+        mobileStatus.textContent = "Playback gepauzeerd.";
+      } catch (error) {
+        console.error(error);
+        mobileStatus.textContent = error.message || "Pauzeren mislukte.";
       }
     }
 

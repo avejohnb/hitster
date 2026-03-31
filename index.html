@@ -743,6 +743,21 @@
           </div>
         </div>
 
+        <div class="guess-panel">
+          <div>
+            <div class="kicker">Bron import</div>
+            <p class="helper">Plak hier playlist-links of IDs, importeer ze eenmalig, en speel daarna uit de lokale trackpool.</p>
+          </div>
+          <div class="form-row">
+            <label class="input-label" for="playlist-sources-host">Playlist bron(nen)</label>
+            <textarea class="field" id="playlist-sources-host" rows="4" spellcheck="false"></textarea>
+          </div>
+          <div class="btn-row">
+            <button id="import-playlists-btn-host" class="btn btn-secondary" type="button">Importeer playlist(s)</button>
+          </div>
+          <div id="import-status-host" class="status"></div>
+        </div>
+
         <div id="qr-panel" class="qr-card">
           <div class="kicker">QR voor telefoon</div>
           <div id="qr-code"></div>
@@ -863,7 +878,7 @@
   <script>
     const DEFAULT_CLIENT_ID = "aa73d66f565e4f28840c017cf439e73a";
     const DEFAULT_REDIRECT_URI = "https://avejohnb.github.io/hitster/";
-    const APP_VERSION = "v2026.03.31-8";
+    const APP_VERSION = "v2026.03.31-9";
     const AUTH_ENDPOINT = "https://accounts.spotify.com/authorize";
     const TOKEN_ENDPOINT = "https://accounts.spotify.com/api/token";
     const API_BASE = "https://api.spotify.com/v1";
@@ -914,6 +929,7 @@
     const mobileScreen = document.getElementById("screen-mobile");
     const loginStatus = document.getElementById("login-status");
     const importStatus = document.getElementById("import-status");
+    const importStatusHost = document.getElementById("import-status-host");
     const hostStatus = document.getElementById("host-status");
     const clientIdInput = document.getElementById("client-id");
     const redirectUriInput = document.getElementById("redirect-uri");
@@ -939,6 +955,7 @@
     const mobileTitle = document.getElementById("mobile-title");
     const mobileHideBtn = document.getElementById("mobile-hide-btn");
     const playlistSourcesInput = document.getElementById("playlist-sources");
+    const playlistSourcesHostInput = document.getElementById("playlist-sources-host");
     const buildBadgeLogin = document.getElementById("build-badge-login");
     const buildBadgeHost = document.getElementById("build-badge-host");
     const scannerPanel = document.getElementById("scanner-panel");
@@ -946,6 +963,7 @@
     const scannerStatus = document.getElementById("scanner-status");
 
     document.getElementById("import-playlists-btn").addEventListener("click", importPlaylists);
+    document.getElementById("import-playlists-btn-host").addEventListener("click", importPlaylists);
     document.getElementById("login-btn").addEventListener("click", startLogin);
     document.getElementById("reset-btn").addEventListener("click", resetStoredConfig);
     document.getElementById("start-game-btn").addEventListener("click", startGame);
@@ -997,6 +1015,7 @@
     async function init() {
       renderBuildVersion();
       fillSavedConfig();
+      wirePlaylistSourceSync();
 
       const params = new URLSearchParams(window.location.search);
       if (params.get("mode") === "play" && params.get("track")) {
@@ -1047,6 +1066,7 @@
       clientIdInput.value = storedClientId || DEFAULT_CLIENT_ID;
       redirectUriInput.value = storedRedirectUri || DEFAULT_REDIRECT_URI;
       playlistSourcesInput.value = storedPlaylistSources.trim() || DEFAULT_PLAYLIST_SOURCES;
+      playlistSourcesHostInput.value = playlistSourcesInput.value;
       try {
         appState.importedTracks = JSON.parse(storedImportedTracks);
       } catch (error) {
@@ -1057,7 +1077,10 @@
     function saveConfig() {
       localStorage.setItem(STORAGE_PREFIX + "client_id", clientIdInput.value.trim());
       localStorage.setItem(STORAGE_PREFIX + "redirect_uri", redirectUriInput.value.trim());
-      localStorage.setItem(STORAGE_PREFIX + "playlist_sources", playlistSourcesInput.value.trim());
+      const playlistSources = (playlistSourcesInput.value || playlistSourcesHostInput.value || "").trim();
+      playlistSourcesInput.value = playlistSources;
+      playlistSourcesHostInput.value = playlistSources;
+      localStorage.setItem(STORAGE_PREFIX + "playlist_sources", playlistSources);
     }
 
     function resetStoredConfig() {
@@ -1068,6 +1091,7 @@
       fillSavedConfig();
       loginStatus.textContent = "Opgeslagen gegevens zijn teruggezet naar de standaardwaarden.";
       importStatus.textContent = "";
+      importStatusHost.textContent = "";
     }
 
     async function startLogin() {
@@ -1196,8 +1220,8 @@
       saveConfig();
       if (!appState.importedTracks.length) {
         hostStatus.textContent = "Importeer eerst een playlist naar de lokale trackpool.";
-        showScreen("screen-login");
         importStatus.textContent = "Importeer eerst minstens een playlist met tracks.";
+        importStatusHost.textContent = "Importeer eerst minstens een playlist met tracks.";
         return;
       }
       appState.roundNumber = 0;
@@ -1282,14 +1306,17 @@
 
       saveConfig();
       importStatus.textContent = "Playlist(s) importeren...";
+      importStatusHost.textContent = "Playlist(s) importeren...";
       try {
         const tracks = await loadPlaylistPool();
         appState.importedTracks = tracks;
         localStorage.setItem(STORAGE_PREFIX + "imported_tracks", JSON.stringify(tracks));
         importStatus.textContent = "Import gelukt: " + tracks.length + " tracks opgeslagen voor het spel.";
+        importStatusHost.textContent = importStatus.textContent;
       } catch (error) {
         console.error(error);
         importStatus.textContent = error.message || "Importeren van playlists mislukte.";
+        importStatusHost.textContent = importStatus.textContent;
       }
     }
 
@@ -2147,6 +2174,15 @@
       const label = "Build " + APP_VERSION;
       buildBadgeLogin.textContent = label;
       buildBadgeHost.textContent = label;
+    }
+
+    function wirePlaylistSourceSync() {
+      const sync = (source, target) => {
+        target.value = source.value;
+      };
+
+      playlistSourcesInput.addEventListener("input", () => sync(playlistSourcesInput, playlistSourcesHostInput));
+      playlistSourcesHostInput.addEventListener("input", () => sync(playlistSourcesHostInput, playlistSourcesInput));
     }
   </script>
 </body>

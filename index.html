@@ -1248,10 +1248,24 @@
 
       for (const playlistConfig of CURATED_PLAYLISTS) {
         try {
-          const tracks = await fetchPlaylistTracks(playlistConfig.id);
+          let playlistId = playlistConfig.id;
+          let tracks = [];
+
+          try {
+            tracks = await fetchPlaylistTracks(playlistId);
+          } catch (primaryError) {
+            console.warn("Primary playlist id failed, trying search fallback", playlistConfig.name, primaryError);
+            const searchedPlaylist = await searchPlaylistByName(playlistConfig.name);
+            if (!searchedPlaylist) {
+              throw primaryError;
+            }
+            playlistId = searchedPlaylist.id;
+            tracks = await fetchPlaylistTracks(playlistId);
+          }
+
           if (tracks.length) {
             playlists.push({
-              id: playlistConfig.id,
+              id: playlistId,
               name: playlistConfig.name,
               tracks: tracks
             });
@@ -1268,6 +1282,31 @@
       return playlists;
     }
 
+    async function searchPlaylistByName(name) {
+      const url = API_BASE + "/search?type=playlist&limit=5&q=" + encodeURIComponent(name);
+      const response = await fetch(url, {
+        headers: {
+          Authorization: "Bearer " + appState.accessToken
+        }
+      });
+
+      if (!response.ok) {
+        const body = await response.text();
+        throw new Error("Spotify playlist-zoekfout " + response.status + ": " + body);
+      }
+
+      const data = await response.json();
+      const items = data.playlists && data.playlists.items ? data.playlists.items : [];
+
+      const exact = items.find((item) =>
+        item &&
+        item.name &&
+        item.name.toLowerCase() === name.toLowerCase()
+      );
+
+      return exact || items[0] || null;
+    }
+
     async function fetchPlaylistTracks(playlistId) {
       const tracks = [];
       let offset = 0;
@@ -1278,8 +1317,7 @@
           "/playlists/" +
           encodeURIComponent(playlistId) +
           "/tracks?limit=100&offset=" +
-          offset +
-          "&fields=items(track(id,name,uri,is_local,popularity,duration_ms,artists(name),album(name,album_type,release_date,images),external_urls)),next";
+          offset;
 
         const response = await fetch(url, {
           headers: {

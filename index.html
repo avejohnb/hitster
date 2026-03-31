@@ -768,6 +768,10 @@
     const API_BASE = "https://api.spotify.com/v1";
     const STORAGE_PREFIX = "hitster_qr_";
     const SEARCH_CHARS = "abcdefghijklmnopqrstuvwxyz0123456789";
+    const SEARCH_TERMS = [
+      "love", "night", "heart", "dance", "dream", "baby", "fire", "moon", "star", "summer",
+      "blue", "gold", "wild", "radio", "girl", "boy", "light", "home", "street", "party"
+    ];
 
     const appState = {
       accessToken: null,
@@ -1046,10 +1050,12 @@
     }
 
     async function fetchRandomTrack() {
-      const attempts = 16;
+      const attempts = 24;
+      const errors = [];
+
       for (let attempt = 0; attempt < attempts; attempt += 1) {
-        const query = buildRandomSearchQuery();
-        const offset = Math.floor(Math.random() * 200);
+        const query = buildRandomSearchQuery(attempt);
+        const offset = Math.floor(Math.random() * 1000);
         const url = API_BASE + "/search?type=track&limit=50&market=from_token&offset=" + offset + "&q=" + encodeURIComponent(query);
         const response = await fetch(url, {
           headers: {
@@ -1058,7 +1064,8 @@
         });
 
         if (!response.ok) {
-          throw new Error("Spotify API fout " + response.status);
+          const body = await response.text();
+          throw new Error("Spotify API fout " + response.status + ": " + body);
         }
 
         const data = await response.json();
@@ -1071,16 +1078,32 @@
           appState.usedTrackIds.add(track.id);
           return track;
         }
+
+        errors.push(query);
       }
 
-      throw new Error("Spotify leverde tijdelijk geen nieuwe tracks met previewfragment.");
+      throw new Error("Spotify leverde geen nieuwe tracks met previewfragment. Laatste zoekpogingen: " + errors.slice(-3).join(" | "));
     }
 
-    function buildRandomSearchQuery() {
+    function buildRandomSearchQuery(attempt) {
       const yearStart = 1960 + Math.floor(Math.random() * 65);
-      const yearEnd = Math.min(yearStart + Math.floor(Math.random() * 3), 2025);
-      const chars = shuffle(SEARCH_CHARS.split("")).slice(0, 2).join(" ");
-      return "track:" + chars + " year:" + yearStart + "-" + yearEnd;
+      const yearEnd = Math.min(yearStart + Math.floor(Math.random() * 8), 2025);
+      const randomChar = SEARCH_CHARS[Math.floor(Math.random() * SEARCH_CHARS.length)];
+      const randomTerm = SEARCH_TERMS[Math.floor(Math.random() * SEARCH_TERMS.length)];
+
+      if (attempt % 4 === 0) {
+        return randomTerm + " year:" + yearStart + "-" + yearEnd;
+      }
+
+      if (attempt % 4 === 1) {
+        return randomChar + " year:" + yearStart + "-" + yearEnd;
+      }
+
+      if (attempt % 4 === 2) {
+        return randomTerm;
+      }
+
+      return randomChar;
     }
 
     function hasUsablePreview(track) {

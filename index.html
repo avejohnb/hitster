@@ -715,7 +715,7 @@
         <div id="empty-view" class="empty-state hidden">
           <div>
             <div class="kicker">Wacht op start</div>
-            <p>Start het spel om een willekeurige track met previewfragment op te halen.</p>
+            <p>Start het spel om een willekeurige speelbare Spotify-track op te halen.</p>
           </div>
         </div>
       </section>
@@ -730,11 +730,10 @@
           <h2>Luister zonder spoilers.</h2>
         </div>
 
-        <p id="mobile-intro" class="helper">Je ziet hier alleen de speler. Eerst luisteren, dan pas onthullen.</p>
+        <p id="mobile-intro" class="helper">Je ziet hier alleen de speler. Activeer eerst Spotify in deze browser, luister, en onthul daarna pas de songinfo.</p>
 
         <div class="mobile-player">
-          <audio id="mobile-audio" controls playsinline preload="none"></audio>
-          <button id="mobile-play-btn" class="btn btn-primary" type="button">Speel fragment</button>
+          <button id="mobile-play-btn" class="btn btn-primary" type="button">Activeer en speel</button>
           <div id="mobile-status" class="status"></div>
         </div>
 
@@ -759,6 +758,7 @@
     </div>
   </div>
 
+  <script src="https://sdk.scdn.co/spotify-player.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
   <script>
     const DEFAULT_CLIENT_ID = "aa73d66f565e4f28840c017cf439e73a";
@@ -784,6 +784,14 @@
       usedTrackIds: new Set()
     };
 
+    const mobileState = {
+      player: null,
+      deviceId: null,
+      sdkReady: false,
+      sdkWaiter: null,
+      track: null
+    };
+
     const loginScreen = document.getElementById("screen-login");
     const hostScreen = document.getElementById("screen-host");
     const mobileScreen = document.getElementById("screen-mobile");
@@ -806,7 +814,6 @@
     const phoneUrlPill = document.getElementById("phone-url-pill");
     const coverView = document.getElementById("cover-view");
     const emptyView = document.getElementById("empty-view");
-    const mobileAudio = document.getElementById("mobile-audio");
     const mobileStatus = document.getElementById("mobile-status");
     const mobileReveal = document.getElementById("mobile-reveal");
     const mobileYear = document.getElementById("mobile-year");
@@ -915,6 +922,13 @@
         client_id: clientId,
         response_type: "code",
         redirect_uri: redirectUri,
+        scope: [
+          "streaming",
+          "user-read-email",
+          "user-read-private",
+          "user-read-playback-state",
+          "user-modify-playback-state"
+        ].join(" "),
         code_challenge_method: "S256",
         code_challenge: challenge,
         state: state
@@ -1020,7 +1034,7 @@
       showScreen("screen-host");
       hostStatus.textContent = "Willekeurige Spotify-track zoeken...";
       deckLabel.textContent = "Zoeken";
-      previewLabel.textContent = "Preview vereist";
+      previewLabel.textContent = "Premium playback";
       guessFeedback.textContent = "";
       answerExtra.textContent = "";
       revealCard.classList.remove("visible");
@@ -1070,7 +1084,7 @@
 
         const data = await response.json();
         const items = (data.tracks && data.tracks.items ? data.tracks.items : [])
-          .filter(hasUsablePreview)
+          .filter(hasPlayableTrack)
           .filter((track) => !appState.usedTrackIds.has(track.id));
 
         if (items.length) {
@@ -1082,7 +1096,7 @@
         errors.push(query);
       }
 
-      throw new Error("Spotify leverde geen nieuwe tracks met previewfragment. Laatste zoekpogingen: " + errors.slice(-3).join(" | "));
+      throw new Error("Spotify leverde geen nieuwe speelbare tracks. Laatste zoekpogingen: " + errors.slice(-3).join(" | "));
     }
 
     function buildRandomSearchQuery(attempt) {
@@ -1106,10 +1120,11 @@
       return randomChar;
     }
 
-    function hasUsablePreview(track) {
+    function hasPlayableTrack(track) {
       return Boolean(
         track &&
-        track.preview_url &&
+        track.uri &&
+        !track.is_local &&
         track.name &&
         track.artists &&
         track.artists.length &&
@@ -1125,6 +1140,7 @@
         title: track.name,
         artist: track.artists.map((artist) => artist.name).join(", "),
         year: releaseYear,
+        uri: track.uri,
         previewUrl: track.preview_url,
         albumImage: track.album.images && track.album.images[0] ? track.album.images[0].url : "",
         spotifyUrl: track.external_urls ? track.external_urls.spotify : ""
@@ -1172,11 +1188,12 @@
 
     function renderQrCode(track) {
       const payload = {
-        title: track.title,
-        artist: track.artist,
-        year: track.year,
-        previewUrl: track.previewUrl,
-        spotifyUrl: track.spotifyUrl
+        t: appState.accessToken,
+        u: track.uri,
+        n: track.title,
+        a: track.artist,
+        y: track.year,
+        s: track.spotifyUrl
       };
 
       const encoded = encodePayload(payload);
@@ -1261,15 +1278,24 @@
       showScreen("screen-mobile");
       try {
         const track = decodePayload(encodedTrack);
-        if (!track.previewUrl) {
-          throw new Error("Geen previewfragment beschikbaar voor deze track.");
+        const normalizedTrack = {
+          token: track.token || track.t,
+          uri: track.uri || track.u,
+          title: track.title || track.n,
+          artist: track.artist || track.a,
+          year: track.year || track.y,
+          spotifyUrl: track.spotifyUrl || track.s
+        };
+
+        if (!normalizedTrack.token || !normalizedTrack.uri) {
+          throw new Error("Deze speelronde mist een geldig Spotify-token of track-URI.");
         }
 
-        mobileAudio.src = track.previewUrl;
-        mobileStatus.textContent = "Tik op afspelen om het fragment te horen.";
-        mobileYear.textContent = track.year || "-";
-        mobileArtist.textContent = track.artist || "-";
-        mobileTitle.textContent = track.title || "-";
+        mobileState.track = normalizedTrack;
+        mobileStatus.textContent = "Tik op 'Activeer en speel' om Spotify in deze browser te starten.";
+        mobileYear.textContent = normalizedTrack.year || "-";
+        mobileArtist.textContent = normalizedTrack.artist || "-";
+        mobileTitle.textContent = normalizedTrack.title || "-";
       } catch (error) {
         mobileStatus.textContent = error.message || "Kon deze speelronde niet laden.";
       }
@@ -1277,11 +1303,126 @@
 
     async function playMobilePreview() {
       try {
-        mobileAudio.currentTime = 0;
-        await mobileAudio.play();
-        mobileStatus.textContent = "Fragment speelt af.";
+        if (!mobileState.track) {
+          throw new Error("Er is geen track beschikbaar.");
+        }
+
+        mobileStatus.textContent = "Spotify speler activeren...";
+        const player = await ensureMobilePlayer(mobileState.track.token);
+        await player.activateElement();
+        mobileStatus.textContent = "Playback overzetten naar deze telefoon...";
+        await transferPlaybackToMobile(mobileState.track.token, mobileState.deviceId);
+        await startTrackOnMobile(mobileState.track.token, mobileState.deviceId, mobileState.track.uri);
+        mobileStatus.textContent = "Nummer speelt af in deze browser.";
       } catch (error) {
-        mobileStatus.textContent = "Autoplay werd geblokkeerd. Gebruik de audioknoppen hierboven.";
+        console.error(error);
+        mobileStatus.textContent = error.message || "Spotify playback starten mislukte.";
+      }
+    }
+
+    async function ensureMobilePlayer(token) {
+      if (mobileState.player && mobileState.deviceId) {
+        return mobileState.player;
+      }
+
+      await waitForSpotifySdk();
+
+      return new Promise((resolve, reject) => {
+        const player = new Spotify.Player({
+          name: "Hitster family B editie",
+          getOAuthToken: (cb) => cb(token),
+          volume: 0.85
+        });
+
+        const fail = (message) => {
+          reject(new Error(message));
+        };
+
+        player.addListener("ready", ({ device_id }) => {
+          mobileState.player = player;
+          mobileState.deviceId = device_id;
+          resolve(player);
+        });
+
+        player.addListener("not_ready", ({ device_id }) => {
+          console.warn("Spotify device offline", device_id);
+        });
+
+        player.addListener("initialization_error", ({ message }) => fail("Spotify initialisatie mislukt: " + message));
+        player.addListener("authentication_error", ({ message }) => fail("Spotify authenticatie mislukt: " + message));
+        player.addListener("account_error", ({ message }) => fail("Spotify accountfout: " + message));
+        player.addListener("playback_error", ({ message }) => fail("Spotify playbackfout: " + message));
+
+        player.connect().then((connected) => {
+          if (!connected) {
+            fail("Spotify speler kon niet verbinden.");
+          }
+        }).catch((error) => {
+          fail(error.message || "Spotify speler kon niet verbinden.");
+        });
+      });
+    }
+
+    function waitForSpotifySdk() {
+      if (window.Spotify && mobileState.sdkReady) {
+        return Promise.resolve();
+      }
+
+      if (mobileState.sdkWaiter) {
+        return mobileState.sdkWaiter;
+      }
+
+      mobileState.sdkWaiter = new Promise((resolve) => {
+        if (window.Spotify) {
+          mobileState.sdkReady = true;
+          resolve();
+          return;
+        }
+
+        window.onSpotifyWebPlaybackSDKReady = () => {
+          mobileState.sdkReady = true;
+          resolve();
+        };
+      });
+
+      return mobileState.sdkWaiter;
+    }
+
+    async function transferPlaybackToMobile(token, deviceId) {
+      const response = await fetch(API_BASE + "/me/player", {
+        method: "PUT",
+        headers: {
+          Authorization: "Bearer " + token,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          device_ids: [deviceId],
+          play: false
+        })
+      });
+
+      if (!response.ok && response.status !== 204) {
+        const text = await response.text();
+        throw new Error("Playback transfer mislukte: " + response.status + " " + text);
+      }
+    }
+
+    async function startTrackOnMobile(token, deviceId, uri) {
+      const response = await fetch(API_BASE + "/me/player/play?device_id=" + encodeURIComponent(deviceId), {
+        method: "PUT",
+        headers: {
+          Authorization: "Bearer " + token,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          uris: [uri],
+          position_ms: 0
+        })
+      });
+
+      if (!response.ok && response.status !== 204) {
+        const text = await response.text();
+        throw new Error("Track starten mislukte: " + response.status + " " + text);
       }
     }
 

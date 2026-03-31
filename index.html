@@ -861,7 +861,7 @@
   <script>
     const DEFAULT_CLIENT_ID = "aa73d66f565e4f28840c017cf439e73a";
     const DEFAULT_REDIRECT_URI = "https://avejohnb.github.io/hitster/";
-    const APP_VERSION = "v2026.03.31-6";
+    const APP_VERSION = "v2026.03.31-7";
     const AUTH_ENDPOINT = "https://accounts.spotify.com/authorize";
     const TOKEN_ENDPOINT = "https://accounts.spotify.com/api/token";
     const API_BASE = "https://api.spotify.com/v1";
@@ -1281,9 +1281,10 @@
 
       for (const playlistId of playlistIds) {
         try {
+          const playlistMeta = await fetchPlaylistMetadata(playlistId);
           const playlistTracks = await fetchPlaylistTracks(playlistId);
           if (!playlistTracks.length) {
-            emptyPlaylists.push(playlistId);
+            emptyPlaylists.push(playlistId + " (Spotify total: " + playlistMeta.total + ")");
             continue;
           }
           tracks.push(...playlistTracks);
@@ -1368,7 +1369,7 @@
           encodeURIComponent(playlistId) +
           "/tracks?limit=100&offset=" +
           offset +
-          "&market=from_token&additional_types=track";
+          "&additional_types=track";
         const response = await fetch(url, {
           headers: {
             Authorization: "Bearer " + appState.accessToken
@@ -1411,7 +1412,7 @@
         encodeURIComponent(playlistId) +
         "?fields=" +
         fields +
-        "&market=from_token&additional_types=track";
+        "&additional_types=track";
       const response = await fetch(url, {
         headers: {
           Authorization: "Bearer " + appState.accessToken
@@ -1466,6 +1467,26 @@
       }
 
       throw new Error("Playlist niet gevonden in /me/playlists voor id " + playlistId);
+    }
+
+    async function fetchPlaylistMetadata(playlistId) {
+      const url = API_BASE + "/playlists/" + encodeURIComponent(playlistId) + "?fields=name,tracks(total)";
+      const response = await fetch(url, {
+        headers: {
+          Authorization: "Bearer " + appState.accessToken
+        }
+      });
+
+      if (!response.ok) {
+        const body = await response.text();
+        throw new Error("Spotify playlist metadata fout " + response.status + " via " + url + ": " + body);
+      }
+
+      const data = await response.json();
+      return {
+        name: data.name || playlistId,
+        total: data.tracks && typeof data.tracks.total === "number" ? data.tracks.total : 0
+      };
     }
 
     function extractTrackFromPlaylistItem(item) {

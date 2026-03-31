@@ -1,0 +1,650 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Hitster</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500&display=swap');
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --black: #111;
+    --white: #f5f4f0;
+    --green: #1DB954;
+    --card-bg: #1a1a1a;
+    --border: rgba(255,255,255,0.1);
+    --text-muted: rgba(255,255,255,0.4);
+  }
+
+  html, body {
+    height: 100%;
+    background: var(--black);
+    color: var(--white);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 16px;
+    line-height: 1.5;
+  }
+
+  .screen {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem;
+    text-align: center;
+  }
+
+  .screen { display: none; }
+  .screen.active { display: flex; }
+
+  /* ── Login screen ── */
+  #screen-login h1 {
+    font-family: 'DM Mono', monospace;
+    font-size: clamp(2rem, 8vw, 4rem);
+    font-weight: 500;
+    letter-spacing: -0.02em;
+    margin-bottom: 0.5rem;
+  }
+
+  #screen-login p {
+    color: var(--text-muted);
+    margin-bottom: 2.5rem;
+    font-size: 15px;
+  }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    padding: 14px 28px;
+    border-radius: 50px;
+    border: none;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 15px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: transform 0.15s, opacity 0.15s;
+    text-decoration: none;
+  }
+  .btn:active { transform: scale(0.97); }
+
+  .btn-spotify {
+    background: var(--green);
+    color: #000;
+  }
+  .btn-spotify:hover { opacity: 0.88; }
+
+  .btn-outline {
+    background: transparent;
+    color: var(--white);
+    border: 1px solid var(--border);
+  }
+  .btn-outline:hover { border-color: rgba(255,255,255,0.3); background: rgba(255,255,255,0.05); }
+
+  .btn-ghost {
+    background: transparent;
+    color: var(--text-muted);
+    border: none;
+    padding: 10px 20px;
+    font-size: 14px;
+  }
+  .btn-ghost:hover { color: var(--white); }
+
+  /* ── Setup screen ── */
+  #screen-setup h2 {
+    font-family: 'DM Mono', monospace;
+    font-size: 1.5rem;
+    font-weight: 500;
+    margin-bottom: 2rem;
+  }
+
+  .setup-box {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 2rem;
+    width: 100%;
+    max-width: 420px;
+    text-align: left;
+  }
+
+  .setup-box label {
+    display: block;
+    font-size: 12px;
+    color: var(--text-muted);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+    font-family: 'DM Mono', monospace;
+  }
+
+  .setup-box input {
+    width: 100%;
+    background: rgba(255,255,255,0.06);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--white);
+    font-family: 'DM Mono', monospace;
+    font-size: 13px;
+    padding: 10px 14px;
+    margin-bottom: 1.25rem;
+    outline: none;
+    transition: border-color 0.15s;
+  }
+  .setup-box input:focus { border-color: rgba(255,255,255,0.3); }
+
+  .setup-note {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-top: 1rem;
+    line-height: 1.6;
+  }
+  .setup-note a { color: var(--green); text-decoration: none; }
+  .setup-note a:hover { text-decoration: underline; }
+
+  /* ── Game screen ── */
+  #screen-game {
+    gap: 0;
+    justify-content: space-between;
+    padding: 1.5rem;
+  }
+
+  .game-top {
+    width: 100%;
+    max-width: 420px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 1.5rem;
+  }
+
+  .track-counter {
+    font-family: 'DM Mono', monospace;
+    font-size: 13px;
+    color: var(--text-muted);
+  }
+
+  .game-card {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    width: 100%;
+    max-width: 420px;
+    padding: 2rem 2rem 1.5rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1.5rem;
+    flex: 1;
+    justify-content: center;
+  }
+
+  .now-playing {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 14px;
+    background: rgba(29,185,84,0.1);
+    border: 1px solid rgba(29,185,84,0.2);
+    border-radius: 10px;
+  }
+
+  .now-playing-dot {
+    width: 8px;
+    height: 8px;
+    background: var(--green);
+    border-radius: 50%;
+    animation: pulse 1.5s infinite;
+    flex-shrink: 0;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.3; }
+  }
+
+  .now-playing-text {
+    font-size: 13px;
+    color: var(--green);
+    font-family: 'DM Mono', monospace;
+  }
+
+  .player-status {
+    font-size: 13px;
+    color: var(--text-muted);
+    font-family: 'DM Mono', monospace;
+    text-align: center;
+  }
+
+  .play-btn {
+    width: 72px;
+    height: 72px;
+    border-radius: 50%;
+    background: var(--green);
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.15s, opacity 0.15s;
+  }
+  .play-btn:hover { opacity: 0.88; transform: scale(1.04); }
+  .play-btn:active { transform: scale(0.96); }
+  .play-btn svg { width: 28px; height: 28px; fill: #000; margin-left: 3px; }
+  .play-btn.playing svg.icon-play { display: none; }
+  .play-btn:not(.playing) svg.icon-pause { display: none; }
+
+  .divider {
+    width: 100%;
+    height: 1px;
+    background: var(--border);
+  }
+
+  /* Reveal area */
+  .reveal-area { width: 100%; }
+
+  .reveal-btn-main {
+    width: 100%;
+    padding: 13px;
+    border-radius: 10px;
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--white);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 15px;
+    cursor: pointer;
+    transition: border-color 0.15s, background 0.15s;
+  }
+  .reveal-btn-main:hover { border-color: rgba(255,255,255,0.3); background: rgba(255,255,255,0.04); }
+
+  .song-info {
+    display: none;
+    width: 100%;
+  }
+  .song-info.visible { display: block; }
+
+  .info-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .info-row:last-child { border-bottom: none; }
+  .info-key {
+    font-size: 11px;
+    color: var(--text-muted);
+    font-family: 'DM Mono', monospace;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+  .info-val {
+    font-size: 15px;
+    font-weight: 500;
+    text-align: right;
+    max-width: 65%;
+  }
+  .info-year {
+    font-family: 'DM Mono', monospace;
+    font-size: 26px;
+    font-weight: 500;
+    color: var(--green);
+  }
+
+  .game-nav {
+    width: 100%;
+    max-width: 420px;
+    display: flex;
+    gap: 10px;
+    margin-top: 1.5rem;
+  }
+  .game-nav button { flex: 1; }
+
+  /* ── Done screen ── */
+  #screen-done h2 {
+    font-family: 'DM Mono', monospace;
+    font-size: clamp(1.5rem, 6vw, 2.5rem);
+    font-weight: 500;
+    margin-bottom: 0.5rem;
+  }
+  #screen-done p {
+    color: var(--text-muted);
+    margin-bottom: 2rem;
+  }
+
+  /* ── Error ── */
+  .error-msg {
+    font-size: 13px;
+    color: #ff6b6b;
+    margin-top: 0.75rem;
+    font-family: 'DM Mono', monospace;
+    display: none;
+  }
+  .error-msg.visible { display: block; }
+
+  .progress-dots {
+    display: flex;
+    gap: 6px;
+    justify-content: center;
+  }
+  .dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--border);
+    transition: background 0.2s;
+  }
+  .dot.done { background: var(--green); }
+  .dot.current { background: var(--white); }
+</style>
+</head>
+<body>
+
+<!-- ── LOGIN ── -->
+<div id="screen-login" class="screen active">
+  <h1>hitster</h1>
+  <p>Raad het jaar van het nummer</p>
+  <button class="btn btn-spotify" onclick="startLogin()">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.301 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.78.241 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.601.18-1.2.72-1.381 4.26-1.26 11.28-1.02 15.721 1.621.539.3.719 1.02.419 1.56-.299.421-1.02.599-1.559.3z"/></svg>
+    Inloggen met Spotify
+  </button>
+  <div style="margin-top: 1rem;">
+    <button class="btn btn-ghost" onclick="showSetup()">Eigen Spotify app instellen</button>
+  </div>
+</div>
+
+<!-- ── SETUP ── -->
+<div id="screen-setup" class="screen">
+  <h2>Spotify app instellen</h2>
+  <div class="setup-box">
+    <label>Client ID</label>
+    <input type="text" id="client-id" placeholder="jouw_client_id" />
+    <label>Redirect URI</label>
+    <input type="text" id="redirect-uri" placeholder="http://localhost:8080" />
+    <div id="setup-error" class="error-msg"></div>
+    <button class="btn btn-spotify" style="width:100%; justify-content:center; margin-top:0.5rem;" onclick="saveSetup()">Opslaan &amp; inloggen</button>
+    <p class="setup-note">
+      Maak een gratis app aan op
+      <a href="https://developer.spotify.com/dashboard" target="_blank">developer.spotify.com</a>.
+      Voeg je redirect URI toe onder "Edit settings". Vereist een Spotify Premium account voor afspelen.
+    </p>
+  </div>
+  <button class="btn btn-ghost" style="margin-top:1rem;" onclick="showScreen('screen-login')">← Terug</button>
+</div>
+
+<!-- ── GAME ── -->
+<div id="screen-game" class="screen">
+  <div class="game-top">
+    <span class="track-counter" id="track-counter">1 / 10</span>
+    <div class="progress-dots" id="progress-dots"></div>
+    <button class="btn btn-ghost" style="padding:6px 12px;font-size:13px;" onclick="logout()">Stop</button>
+  </div>
+
+  <div class="game-card">
+    <div class="now-playing" id="now-playing" style="display:none;">
+      <div class="now-playing-dot"></div>
+      <span class="now-playing-text">speelt af</span>
+    </div>
+
+    <button class="play-btn" id="play-btn" onclick="togglePlay()">
+      <svg class="icon-play" viewBox="0 0 24 24"><polygon points="5,3 19,12 5,21"/></svg>
+      <svg class="icon-pause" viewBox="0 0 24 24"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
+    </button>
+
+    <p class="player-status" id="player-status">Druk op play om te starten</p>
+
+    <div class="divider"></div>
+
+    <div class="reveal-area">
+      <button class="reveal-btn-main" id="reveal-btn" onclick="revealSong()">Onthul het nummer</button>
+      <div class="song-info" id="song-info">
+        <div class="info-row">
+          <span class="info-key">Titel</span>
+          <span class="info-val" id="info-title">—</span>
+        </div>
+        <div class="info-row">
+          <span class="info-key">Artiest</span>
+          <span class="info-val" id="info-artist">—</span>
+        </div>
+        <div class="info-row">
+          <span class="info-key">Jaar</span>
+          <span class="info-year" id="info-year">—</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="game-nav">
+    <button class="btn btn-outline" onclick="prevTrack()">← Vorige</button>
+    <button class="btn btn-outline" onclick="nextTrack()">Volgende →</button>
+  </div>
+</div>
+
+<!-- ── DONE ── -->
+<div id="screen-done" class="screen">
+  <h2>Alle nummers gehad!</h2>
+  <p>10 van de 10 gespeeld</p>
+  <button class="btn btn-outline" onclick="restartGame()">Opnieuw spelen</button>
+  <button class="btn btn-ghost" style="margin-top:0.5rem;" onclick="logout()">Uitloggen</button>
+</div>
+
+<script src="https://sdk.scdn.co/spotify-player.js"></script>
+<script>
+const SONGS = [
+  { title: "Billie Jean",                         artist: "Michael Jackson", year: 1983, uri: "spotify:track:5ChkMS8OtdzJeqyybCc9R5" },
+  { title: "Every Little Thing She Does Is Magic", artist: "The Police",      year: 1981, uri: "spotify:track:44aTAUBF0g6sMkMNE8I5kd" },
+  { title: "What's Love Got to Do with It",        artist: "Tina Turner",     year: 1984, uri: "spotify:track:3ErsOxqe2RmXkR65wkygDz" },
+  { title: "Wake Me Up Before You Go-Go",          artist: "Wham!",            year: 1984, uri: "spotify:track:0ikz6tENMONtK6qGkOrU3c" },
+  { title: "Like a Virgin",                        artist: "Madonna",          year: 1984, uri: "spotify:track:1ZPlNanZsJSPK5h9YZZFbZ" },
+  { title: "Don't You (Forget About Me)",          artist: "Simple Minds",     year: 1985, uri: "spotify:track:3fH4KjXFYMmljxrcGrbPj9" },
+  { title: "Take On Me",                           artist: "A-ha",             year: 1985, uri: "spotify:track:2WfaOiMkCvy7F5fcp2zZ8L" },
+  { title: "Bad",                                  artist: "Michael Jackson",  year: 1987, uri: "spotify:track:5lWFrW5T3JtxVCLDb7etPu" },
+  { title: "Love Shack",                           artist: "The B-52's",       year: 1989, uri: "spotify:track:4W4wYHtsrgDiivRASVOINL" },
+  { title: "Girls Just Want to Have Fun",          artist: "Cyndi Lauper",     year: 1983, uri: "spotify:track:4y1LsJpmMti1PfRQV9AWWe" }
+];
+
+const SCOPES = [
+  'streaming',
+  'user-read-email',
+  'user-read-private',
+  'user-read-playback-state',
+  'user-modify-playback-state'
+].join(' ');
+
+let CLIENT_ID = localStorage.getItem('hitster_client_id') || '';
+let REDIRECT_URI = localStorage.getItem('hitster_redirect_uri') || window.location.origin + window.location.pathname;
+let token = null;
+let player = null;
+let deviceId = null;
+let cur = 0;
+let isPlaying = false;
+let revealed = new Array(SONGS.length).fill(false);
+
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+function showSetup() {
+  document.getElementById('client-id').value = CLIENT_ID;
+  document.getElementById('redirect-uri').value = REDIRECT_URI;
+  showScreen('screen-setup');
+}
+
+function saveSetup() {
+  const cid = document.getElementById('client-id').value.trim();
+  const ruri = document.getElementById('redirect-uri').value.trim();
+  const err = document.getElementById('setup-error');
+  if (!cid) { err.textContent = 'Client ID is verplicht'; err.classList.add('visible'); return; }
+  err.classList.remove('visible');
+  CLIENT_ID = cid; REDIRECT_URI = ruri;
+  localStorage.setItem('hitster_client_id', cid);
+  localStorage.setItem('hitster_redirect_uri', ruri);
+  startLogin();
+}
+
+function startLogin() {
+  if (!CLIENT_ID) { showSetup(); return; }
+  const state = Math.random().toString(36).substring(2);
+  localStorage.setItem('hitster_state', state);
+  const params = new URLSearchParams({
+    response_type: 'token',
+    client_id: CLIENT_ID,
+    scope: SCOPES,
+    redirect_uri: REDIRECT_URI,
+    state: state,
+    show_dialog: 'false'
+  });
+  window.location = 'https://accounts.spotify.com/authorize?' + params;
+}
+
+function handleCallback() {
+  const hash = window.location.hash.substring(1);
+  const params = new URLSearchParams(hash);
+  if (params.get('access_token')) {
+    token = params.get('access_token');
+    localStorage.setItem('hitster_token', token);
+    window.history.replaceState({}, '', window.location.pathname);
+    initPlayer();
+  }
+}
+
+function logout() {
+  if (player) player.disconnect();
+  token = null; deviceId = null; player = null;
+  localStorage.removeItem('hitster_token');
+  showScreen('screen-login');
+}
+
+function initPlayer() {
+  showScreen('screen-game');
+  buildDots();
+  renderCard();
+  document.getElementById('player-status').textContent = 'Speler laden...';
+
+  window.onSpotifyWebPlaybackSDKReady = () => {
+    player = new Spotify.Player({
+      name: 'Hitster',
+      getOAuthToken: cb => cb(token),
+      volume: 0.8
+    });
+
+    player.addListener('ready', ({ device_id }) => {
+      deviceId = device_id;
+      document.getElementById('player-status').textContent = 'Druk op play om te starten';
+    });
+
+    player.addListener('not_ready', () => {
+      document.getElementById('player-status').textContent = 'Speler niet beschikbaar';
+    });
+
+    player.addListener('player_state_changed', state => {
+      if (!state) return;
+      isPlaying = !state.paused;
+      const btn = document.getElementById('play-btn');
+      btn.classList.toggle('playing', isPlaying);
+      document.getElementById('now-playing').style.display = isPlaying ? 'flex' : 'none';
+      document.getElementById('player-status').textContent = isPlaying ? '' : 'Gepauzeerd';
+    });
+
+    player.addListener('authentication_error', () => {
+      document.getElementById('player-status').textContent = 'Auth fout — log opnieuw in';
+    });
+
+    player.connect();
+  };
+
+  if (window.Spotify) {
+    window.onSpotifyWebPlaybackSDKReady();
+  }
+}
+
+async function playTrack(uri) {
+  if (!deviceId || !token) return;
+  await fetch(`https://api.spotify.com/v1/me/player/play?device_id=${deviceId}`, {
+    method: 'PUT',
+    headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ uris: [uri], position_ms: 0 })
+  });
+  isPlaying = true;
+  document.getElementById('play-btn').classList.add('playing');
+  document.getElementById('now-playing').style.display = 'flex';
+  document.getElementById('player-status').textContent = '';
+}
+
+async function togglePlay() {
+  if (!deviceId) { document.getElementById('player-status').textContent = 'Speler nog niet klaar...'; return; }
+  if (!isPlaying) {
+    await playTrack(SONGS[cur].uri);
+  } else {
+    player.pause();
+  }
+}
+
+function revealSong() {
+  revealed[cur] = true;
+  document.getElementById('reveal-btn').style.display = 'none';
+  document.getElementById('info-title').textContent = SONGS[cur].title;
+  document.getElementById('info-artist').textContent = SONGS[cur].artist;
+  document.getElementById('info-year').textContent = SONGS[cur].year;
+  document.getElementById('song-info').classList.add('visible');
+  buildDots();
+}
+
+function renderCard() {
+  const total = SONGS.length;
+  document.getElementById('track-counter').textContent = `${cur + 1} / ${total}`;
+  const rev = revealed[cur];
+  document.getElementById('reveal-btn').style.display = rev ? 'none' : 'block';
+  const info = document.getElementById('song-info');
+  if (rev) {
+    info.classList.add('visible');
+    document.getElementById('info-title').textContent = SONGS[cur].title;
+    document.getElementById('info-artist').textContent = SONGS[cur].artist;
+    document.getElementById('info-year').textContent = SONGS[cur].year;
+  } else {
+    info.classList.remove('visible');
+  }
+  isPlaying = false;
+  document.getElementById('play-btn').classList.remove('playing');
+  document.getElementById('now-playing').style.display = 'none';
+  document.getElementById('player-status').textContent = 'Druk op play om te starten';
+  buildDots();
+}
+
+function prevTrack() {
+  if (cur > 0) { cur--; renderCard(); }
+}
+
+function nextTrack() {
+  if (player) player.pause();
+  if (cur < SONGS.length - 1) { cur++; renderCard(); }
+  else { if (player) player.pause(); showScreen('screen-done'); }
+}
+
+function buildDots() {
+  const el = document.getElementById('progress-dots');
+  el.innerHTML = SONGS.map((_, i) => {
+    const cls = i === cur ? 'dot current' : (revealed[i] ? 'dot done' : 'dot');
+    return `<div class="${cls}"></div>`;
+  }).join('');
+}
+
+function restartGame() {
+  cur = 0; revealed.fill(false);
+  showScreen('screen-game');
+  renderCard();
+}
+
+if (window.location.hash.includes('access_token')) {
+  handleCallback();
+} else {
+  const saved = localStorage.getItem('hitster_token');
+  if (saved) { token = saved; initPlayer(); }
+}
+</script>
+</body>
+</html>

@@ -841,15 +841,12 @@
     const STORAGE_PREFIX = "hitster_qr_";
     const PRIMARY_MIN_POPULARITY = 45;
     const FALLBACK_MIN_POPULARITY = 25;
-    const CURATED_PLAYLIST_NAMES = [
-      "All Out 50s",
-      "All Out 60s",
-      "All Out 70s",
-      "All Out 80s",
-      "All Out 90s",
-      "All Out 00s",
-      "All Out 10s",
-      "All Out 20s"
+    const CURATED_PLAYLISTS = [
+      { name: "All Out 50s", id: "37i9dQZF1DWSV3Tk4GO2fq" },
+      { name: "All Out 60s", id: "37i9dQZF1DXaKIA8E7WcJj" },
+      { name: "All Out 70s", id: "37i9dQZF1DWTJ7xPn4vNaz" },
+      { name: "All Out 80s", id: "37i9dQZF1DX4UtSsGT1Sbe" },
+      { name: "All Out 90s", id: "37i9dQZF1DXbTxeAdrVG2l" }
     ];
     const BLOCKED_AUDIO_TERMS = [
       "podcast", "episode", "audiobook", "audioboek", "interview", "commentary", "meditation",
@@ -1249,23 +1246,18 @@
     async function loadCuratedPlaylists() {
       const playlists = [];
 
-      for (const playlistName of CURATED_PLAYLIST_NAMES) {
+      for (const playlistConfig of CURATED_PLAYLISTS) {
         try {
-          const playlist = await findSpotifyPlaylistByName(playlistName);
-          if (!playlist) {
-            continue;
-          }
-
-          const tracks = await fetchPlaylistTracks(playlist.id);
+          const tracks = await fetchPlaylistTracks(playlistConfig.id);
           if (tracks.length) {
             playlists.push({
-              id: playlist.id,
-              name: playlist.name || playlistName,
+              id: playlistConfig.id,
+              name: playlistConfig.name,
               tracks: tracks
             });
           }
         } catch (error) {
-          console.warn("Playlist load failed", playlistName, error);
+          console.warn("Playlist load failed", playlistConfig.name, error);
         }
       }
 
@@ -1274,72 +1266,6 @@
       }
 
       return playlists;
-    }
-
-    async function findSpotifyPlaylistByName(name) {
-      const query = encodeURIComponent(name);
-      const url = API_BASE + "/search?type=playlist&limit=10&q=" + query;
-      const response = await fetch(url, {
-        headers: {
-          Authorization: "Bearer " + appState.accessToken
-        }
-      });
-
-      if (!response.ok) {
-        const body = await response.text();
-        throw new Error("Spotify playlist-zoekfout " + response.status + ": " + body);
-      }
-
-      const data = await response.json();
-      const items = data.playlists && data.playlists.items ? data.playlists.items : [];
-
-      const normalizedName = name.toLowerCase();
-
-      const exactSpotifyPlaylist = items.find((item) =>
-        item &&
-        item.name &&
-        item.name.toLowerCase() === normalizedName &&
-        item.owner &&
-        String(item.owner.display_name || item.owner.id || "").toLowerCase().includes("spotify")
-      );
-
-      if (exactSpotifyPlaylist) {
-        return exactSpotifyPlaylist;
-      }
-
-      const exactNamePlaylist = items.find((item) =>
-        item &&
-        item.name &&
-        item.name.toLowerCase() === normalizedName
-      );
-
-      if (exactNamePlaylist) {
-        return exactNamePlaylist;
-      }
-
-      const partialSpotifyPlaylist = items.find((item) =>
-        item &&
-        item.name &&
-        item.name.toLowerCase().includes(normalizedName.replace("all out ", "")) &&
-        item.owner &&
-        String(item.owner.display_name || item.owner.id || "").toLowerCase().includes("spotify")
-      );
-
-      if (partialSpotifyPlaylist) {
-        return partialSpotifyPlaylist;
-      }
-
-      const spotifyPlaylist = items.find((item) =>
-        item &&
-        item.owner &&
-        String(item.owner.display_name || item.owner.id || "").toLowerCase().includes("spotify")
-      );
-
-      if (spotifyPlaylist) {
-        return spotifyPlaylist;
-      }
-
-      return items[0] || null;
     }
 
     async function fetchPlaylistTracks(playlistId) {

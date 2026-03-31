@@ -881,7 +881,7 @@
   <script>
     const DEFAULT_CLIENT_ID = "aa73d66f565e4f28840c017cf439e73a";
     const DEFAULT_REDIRECT_URI = "https://avejohnb.github.io/hitster/";
-    const APP_VERSION = "v2026.04.01-15";
+    const APP_VERSION = "v2026.04.01-16";
     const AUTH_ENDPOINT = "https://accounts.spotify.com/authorize";
     const TOKEN_ENDPOINT = "https://accounts.spotify.com/api/token";
     const API_BASE = "https://api.spotify.com/v1";
@@ -1509,25 +1509,81 @@
       const imported = [];
       const market = getMarketQuery();
 
-      for (let index = 0; index < uniqueIds.length; index += 50) {
-        const chunk = uniqueIds.slice(index, index + 50);
-        const url = API_BASE + "/tracks?ids=" + encodeURIComponent(chunk.join(",")) + market;
+      try {
+        for (let index = 0; index < uniqueIds.length; index += 50) {
+          const chunk = uniqueIds.slice(index, index + 50);
+          const url = API_BASE + "/tracks?ids=" + encodeURIComponent(chunk.join(",")) + market;
+          const response = await fetch(url, {
+            headers: {
+              Authorization: "Bearer " + appState.accessToken
+            }
+          });
+
+          if (!response.ok) {
+            const body = await response.text();
+            throw new Error("Spotify tracks fout " + response.status + " via " + url + ": " + body);
+          }
+
+          const data = await response.json();
+          imported.push(...(data.tracks || []).filter(Boolean));
+        }
+
+        return imported;
+      } catch (batchError) {
+        console.warn("Batch tracks endpoint failed, trying individual track fetches", batchError);
+        return await fetchTracksByIdsIndividually(uniqueIds);
+      }
+    }
+
+    async function fetchTracksByIdsIndividually(trackIds) {
+      const imported = [];
+      const failedIds = [];
+
+      for (const trackId of trackIds) {
+        try {
+          const track = await fetchSingleTrackById(trackId);
+          if (track) {
+            imported.push(track);
+          } else {
+            failedIds.push(trackId);
+          }
+        } catch (error) {
+          console.warn("Single track fetch failed", trackId, error);
+          failedIds.push(trackId);
+        }
+      }
+
+      if (!imported.length) {
+        throw new Error("Spotify individuele track-import mislukte voor " + failedIds.length + " track-ID's.");
+      }
+
+      return imported;
+    }
+
+    async function fetchSingleTrackById(trackId) {
+      const candidates = [
+        API_BASE + "/tracks/" + encodeURIComponent(trackId) + getMarketQuery(),
+        API_BASE + "/tracks/" + encodeURIComponent(trackId)
+      ];
+
+      for (const url of candidates) {
         const response = await fetch(url, {
           headers: {
             Authorization: "Bearer " + appState.accessToken
           }
         });
 
-        if (!response.ok) {
-          const body = await response.text();
-          throw new Error("Spotify tracks fout " + response.status + " via " + url + ": " + body);
+        if (response.ok) {
+          return await response.json();
         }
 
-        const data = await response.json();
-        imported.push(...(data.tracks || []).filter(Boolean));
+        if (response.status !== 403 && response.status !== 404) {
+          const body = await response.text();
+          throw new Error("Spotify track fout " + response.status + " via " + url + ": " + body);
+        }
       }
 
-      return imported;
+      return null;
     }
 
     function buildSourceSummary(playlistCount, trackCount) {

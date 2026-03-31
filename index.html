@@ -692,17 +692,19 @@
           </div>
 
           <div class="btn-row">
+            <button id="import-playlists-btn" class="btn btn-secondary" type="button">Importeer playlist(s)</button>
             <button id="login-btn" class="btn btn-primary" type="button">Inloggen met Spotify</button>
             <button id="reset-btn" class="btn btn-secondary" type="button">Reset gegevens</button>
           </div>
 
           <div id="login-status" class="status"></div>
+          <div id="import-status" class="status"></div>
           <div class="small-note">
             Zet in het Spotify Dashboard exact deze redirect URI bij je app:
             <strong>https://avejohnb.github.io/hitster/</strong>
             <br>
             Plak hieronder een of meer Spotify playlist-links of playlist-ID's, elk op een nieuwe regel.
-            Gebruik bij voorkeur publieke playlists. Voor private of collaborative playlists moet je opnieuw inloggen zodat playlist-leesscopes worden meegenomen.
+            Gebruik daarna `Importeer playlist(s)`. Het spel draait vervolgens op de lokaal opgeslagen trackpool, zodat je niet bij elke ronde opnieuw afhankelijk bent van playlist-API-calls.
           </div>
         </div>
       </section>
@@ -861,7 +863,7 @@
   <script>
     const DEFAULT_CLIENT_ID = "aa73d66f565e4f28840c017cf439e73a";
     const DEFAULT_REDIRECT_URI = "https://avejohnb.github.io/hitster/";
-    const APP_VERSION = "v2026.03.31-7";
+    const APP_VERSION = "v2026.03.31-8";
     const AUTH_ENDPOINT = "https://accounts.spotify.com/authorize";
     const TOKEN_ENDPOINT = "https://accounts.spotify.com/api/token";
     const API_BASE = "https://api.spotify.com/v1";
@@ -890,7 +892,7 @@
       qrCode: null,
       gameActive: false,
       usedTrackIds: new Set(),
-      playlistPool: []
+      importedTracks: []
     };
 
     const mobileState = {
@@ -911,6 +913,7 @@
     const hostScreen = document.getElementById("screen-host");
     const mobileScreen = document.getElementById("screen-mobile");
     const loginStatus = document.getElementById("login-status");
+    const importStatus = document.getElementById("import-status");
     const hostStatus = document.getElementById("host-status");
     const clientIdInput = document.getElementById("client-id");
     const redirectUriInput = document.getElementById("redirect-uri");
@@ -942,6 +945,7 @@
     const scannerVideo = document.getElementById("scanner-video");
     const scannerStatus = document.getElementById("scanner-status");
 
+    document.getElementById("import-playlists-btn").addEventListener("click", importPlaylists);
     document.getElementById("login-btn").addEventListener("click", startLogin);
     document.getElementById("reset-btn").addEventListener("click", resetStoredConfig);
     document.getElementById("start-game-btn").addEventListener("click", startGame);
@@ -1038,10 +1042,16 @@
       const storedClientId = (localStorage.getItem(STORAGE_PREFIX + "client_id") || "").trim();
       const storedRedirectUri = (localStorage.getItem(STORAGE_PREFIX + "redirect_uri") || "").trim();
       const storedPlaylistSources = localStorage.getItem(STORAGE_PREFIX + "playlist_sources") || "";
+      const storedImportedTracks = localStorage.getItem(STORAGE_PREFIX + "imported_tracks") || "[]";
 
       clientIdInput.value = storedClientId || DEFAULT_CLIENT_ID;
       redirectUriInput.value = storedRedirectUri || DEFAULT_REDIRECT_URI;
       playlistSourcesInput.value = storedPlaylistSources.trim() || DEFAULT_PLAYLIST_SOURCES;
+      try {
+        appState.importedTracks = JSON.parse(storedImportedTracks);
+      } catch (error) {
+        appState.importedTracks = [];
+      }
     }
 
     function saveConfig() {
@@ -1054,8 +1064,10 @@
       localStorage.removeItem(STORAGE_PREFIX + "client_id");
       localStorage.removeItem(STORAGE_PREFIX + "redirect_uri");
       localStorage.removeItem(STORAGE_PREFIX + "playlist_sources");
+      localStorage.removeItem(STORAGE_PREFIX + "imported_tracks");
       fillSavedConfig();
       loginStatus.textContent = "Opgeslagen gegevens zijn teruggezet naar de standaardwaarden.";
+      importStatus.textContent = "";
     }
 
     async function startLogin() {
@@ -1182,9 +1194,14 @@
       }
 
       saveConfig();
+      if (!appState.importedTracks.length) {
+        hostStatus.textContent = "Importeer eerst een playlist naar de lokale trackpool.";
+        showScreen("screen-login");
+        importStatus.textContent = "Importeer eerst minstens een playlist met tracks.";
+        return;
+      }
       appState.roundNumber = 0;
       appState.usedTrackIds = new Set();
-      appState.playlistPool = [];
       appState.gameActive = true;
       showScreen("screen-host");
       await loadNextRandomTrack();
@@ -1195,7 +1212,6 @@
       appState.currentTrack = null;
       appState.currentPhoneUrl = "";
       appState.revealed = false;
-      appState.playlistPool = [];
       showHostIdleState();
       hostStatus.textContent = "Spel gestopt.";
     }
@@ -1218,11 +1234,6 @@
       qrHint.textContent = "Nieuwe QR-code wordt gegenereerd.";
 
       try {
-        if (!appState.playlistPool.length) {
-          hostStatus.textContent = "Playlist-bronnen laden...";
-          appState.playlistPool = await loadPlaylistPool();
-        }
-
         const track = await fetchRandomTrack();
         appState.currentTrack = track;
         appState.roundNumber += 1;
@@ -1244,11 +1255,11 @@
     }
 
     async function fetchRandomTrack() {
-      if (appState.usedTrackIds.size > appState.playlistPool.length - 5) {
+      if (appState.usedTrackIds.size > appState.importedTracks.length - 5) {
         appState.usedTrackIds = new Set();
       }
 
-      const items = appState.playlistPool
+      const items = appState.importedTracks
         .filter((track) => hasPlayableTrack(track, FALLBACK_MIN_POPULARITY))
         .filter((track) => !appState.usedTrackIds.has(track.id));
 
@@ -1261,6 +1272,25 @@
       const track = pool[Math.floor(Math.random() * pool.length)];
       appState.usedTrackIds.add(track.id);
       return mapTrack(track);
+    }
+
+    async function importPlaylists() {
+      if (!appState.accessToken) {
+        loginStatus.textContent = "Log eerst in met Spotify voordat je playlists importeert.";
+        return;
+      }
+
+      saveConfig();
+      importStatus.textContent = "Playlist(s) importeren...";
+      try {
+        const tracks = await loadPlaylistPool();
+        appState.importedTracks = tracks;
+        localStorage.setItem(STORAGE_PREFIX + "imported_tracks", JSON.stringify(tracks));
+        importStatus.textContent = "Import gelukt: " + tracks.length + " tracks opgeslagen voor het spel.";
+      } catch (error) {
+        console.error(error);
+        importStatus.textContent = error.message || "Importeren van playlists mislukte.";
+      }
     }
 
     async function loadPlaylistPool() {
@@ -2010,7 +2040,6 @@
       appState.currentPhoneUrl = "";
       appState.gameActive = false;
       appState.usedTrackIds = new Set();
-      appState.playlistPool = [];
       localStorage.removeItem(STORAGE_PREFIX + "access_token");
       localStorage.removeItem(STORAGE_PREFIX + "verifier");
       localStorage.removeItem(STORAGE_PREFIX + "state");

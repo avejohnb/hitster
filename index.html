@@ -880,16 +880,33 @@
 
     window.addEventListener("error", (event) => {
       const message = event.error ? event.error.stack || event.error.message : event.message;
+      const filename = event.filename || "";
+
+      // Ignore opaque cross-origin script failures from third-party scripts.
       if (!message || message === "Script error.") {
         console.warn("Opaque script error ignored", event);
         return;
       }
+
+      // Only block the UI for errors originating from this page itself.
+      if (filename && !filename.startsWith(window.location.origin)) {
+        console.warn("Third-party script error ignored", filename, message);
+        return;
+      }
+
       showFatalError(message);
     });
 
     window.addEventListener("unhandledrejection", (event) => {
       const reason = event.reason;
-      showFatalError(reason && reason.stack ? reason.stack : String(reason));
+      const message = reason && reason.stack ? reason.stack : String(reason);
+
+      if (message && message.includes("Script error.")) {
+        console.warn("Opaque rejection ignored", message);
+        return;
+      }
+
+      showFatalError(message);
     });
 
     init();

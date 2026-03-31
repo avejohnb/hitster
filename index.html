@@ -605,6 +605,22 @@
       margin: 12px 0 0;
     }
 
+    .build-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      border-radius: 999px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      background: rgba(255, 255, 255, 0.05);
+      color: var(--muted);
+      font-family: "IBM Plex Mono", monospace;
+      font-size: 11px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      width: fit-content;
+    }
+
     @media (max-width: 920px) {
       .hero,
       .host-grid {
@@ -640,6 +656,7 @@
       <section class="hero">
         <div class="hero-copy">
           <div class="eyebrow">Hitster family B editie</div>
+          <div id="build-badge-login" class="build-badge">Build</div>
           <h1>Oneindige Hitster-rondes met Spotify en QR.</h1>
           <p>
             Log in, start het spel, laat een QR-code zien, scan die met een telefoon en speel een nummerfragment af zonder zichtbare metadata.
@@ -690,6 +707,7 @@
         <div class="host-header">
           <div>
             <div class="eyebrow">Hostmodus</div>
+            <div id="build-badge-host" class="build-badge" style="margin-top:10px;">Build</div>
             <h2>Scan, luister, gok en onthul.</h2>
             <p>Start het spel om een nieuwe willekeurige track op te halen. De telefoon krijgt alleen de fragmentspeler. De host ziet het antwoord pas na onthullen.</p>
           </div>
@@ -835,6 +853,7 @@
   <script>
     const DEFAULT_CLIENT_ID = "aa73d66f565e4f28840c017cf439e73a";
     const DEFAULT_REDIRECT_URI = "https://avejohnb.github.io/hitster/";
+    const APP_VERSION = "v2026.03.31-1";
     const AUTH_ENDPOINT = "https://accounts.spotify.com/authorize";
     const TOKEN_ENDPOINT = "https://accounts.spotify.com/api/token";
     const API_BASE = "https://api.spotify.com/v1";
@@ -951,6 +970,8 @@
     const mobileArtist = document.getElementById("mobile-artist");
     const mobileTitle = document.getElementById("mobile-title");
     const mobileHideBtn = document.getElementById("mobile-hide-btn");
+    const buildBadgeLogin = document.getElementById("build-badge-login");
+    const buildBadgeHost = document.getElementById("build-badge-host");
     const scannerPanel = document.getElementById("scanner-panel");
     const scannerVideo = document.getElementById("scanner-video");
     const scannerStatus = document.getElementById("scanner-status");
@@ -1004,6 +1025,7 @@
     init();
 
     async function init() {
+      renderBuildVersion();
       fillSavedConfig();
 
       const params = new URLSearchParams(window.location.search);
@@ -1272,25 +1294,45 @@
 
       for (const hit of CURATED_HIT_QUERIES) {
         try {
-          const query = `track:"${hit.title}" artist:"${hit.artist}"`;
-          const url = API_BASE + "/search?type=track&limit=10&q=" + encodeURIComponent(query);
+          const queries = [
+            `track:"${hit.title}" artist:"${hit.artist}"`,
+            `${hit.title} ${hit.artist}`,
+            `track:"${hit.title}"`,
+            `${hit.title}`
+          ];
 
-          const response = await fetch(url, {
-            headers: {
-              Authorization: "Bearer " + appState.accessToken
+          let chosen = null;
+
+          for (const query of queries) {
+            const url = API_BASE + "/search?type=track&limit=10&q=" + encodeURIComponent(query);
+            const response = await fetch(url, {
+              headers: {
+                Authorization: "Bearer " + appState.accessToken
+              }
+            });
+
+            if (!response.ok) {
+              const body = await response.text();
+              throw new Error("Spotify hitzoekfout " + response.status + ": " + body);
             }
-          });
 
-          if (!response.ok) {
-            const body = await response.text();
-            throw new Error("Spotify hitzoekfout " + response.status + ": " + body);
+            const data = await response.json();
+            const items = data.tracks && data.tracks.items ? data.tracks.items : [];
+
+            const exactArtist = items.find((track) =>
+              hasPlayableTrack(track, 0) &&
+              track.artists &&
+              track.artists.some((artist) => String(artist.name || "").toLowerCase().includes(hit.artist.toLowerCase()))
+            );
+
+            const primary = items.find((track) => hasPlayableTrack(track, PRIMARY_MIN_POPULARITY));
+            const fallback = items.find((track) => hasPlayableTrack(track, 0));
+
+            chosen = exactArtist || primary || fallback;
+            if (chosen) {
+              break;
+            }
           }
-
-          const data = await response.json();
-          const items = data.tracks && data.tracks.items ? data.tracks.items : [];
-          const primary = items.find((track) => hasPlayableTrack(track, PRIMARY_MIN_POPULARITY));
-          const fallback = items.find((track) => hasPlayableTrack(track, FALLBACK_MIN_POPULARITY));
-          const chosen = primary || fallback;
 
           if (chosen && !tracks.some((track) => track.id === chosen.id)) {
             tracks.push(chosen);
@@ -1323,7 +1365,7 @@
         track.uri &&
         !track.is_local &&
         !hasBlockedTerm &&
-        !hasBlockedMusicTerm &&
+        (minPopularity <= 0 || !hasBlockedMusicTerm) &&
         typeof track.popularity === "number" &&
         track.popularity >= minPopularity &&
         typeof track.duration_ms === "number" &&
@@ -1916,6 +1958,12 @@
       loginScreen.classList.add("active");
       hostScreen.classList.remove("active");
       mobileScreen.classList.remove("active");
+    }
+
+    function renderBuildVersion() {
+      const label = "Build " + APP_VERSION;
+      buildBadgeLogin.textContent = label;
+      buildBadgeHost.textContent = label;
     }
   </script>
 </body>

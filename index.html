@@ -801,7 +801,6 @@
     </div>
   </div>
 
-  <script src="https://sdk.scdn.co/spotify-player.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
   <script>
     const DEFAULT_CLIENT_ID = "aa73d66f565e4f28840c017cf439e73a";
@@ -880,7 +879,12 @@
     mobileHideBtn.addEventListener("click", hideMobileReveal);
 
     window.addEventListener("error", (event) => {
-      showFatalError(event.error ? event.error.stack || event.error.message : event.message);
+      const message = event.error ? event.error.stack || event.error.message : event.message;
+      if (!message || message === "Script error.") {
+        console.warn("Opaque script error ignored", event);
+        return;
+      }
+      showFatalError(message);
     });
 
     window.addEventListener("unhandledrejection", (event) => {
@@ -1429,6 +1433,8 @@
       }
 
       mobileState.sdkWaiter = new Promise((resolve) => {
+        loadSpotifySdkScript();
+
         if (window.Spotify) {
           mobileState.sdkReady = true;
           resolve();
@@ -1442,6 +1448,19 @@
       });
 
       return mobileState.sdkWaiter;
+    }
+
+    function loadSpotifySdkScript() {
+      if (document.querySelector('script[data-spotify-sdk="true"]')) {
+        return;
+      }
+
+      const script = document.createElement("script");
+      script.src = "https://sdk.scdn.co/spotify-player.js";
+      script.async = true;
+      script.crossOrigin = "anonymous";
+      script.dataset.spotifySdk = "true";
+      document.head.appendChild(script);
     }
 
     async function transferPlaybackToMobile(token, deviceId) {

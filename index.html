@@ -545,6 +545,27 @@
       line-height: 1.6;
     }
 
+    .scanner-panel {
+      display: none;
+      gap: 12px;
+      padding: 18px;
+      border-radius: 20px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .scanner-panel.visible {
+      display: grid;
+    }
+
+    .scanner-video {
+      width: 100%;
+      border-radius: 18px;
+      background: #000;
+      aspect-ratio: 3 / 4;
+      object-fit: cover;
+    }
+
     .hidden {
       display: none !important;
     }
@@ -640,16 +661,16 @@
 
           <div class="form-row">
             <label class="input-label" for="client-id">Client ID</label>
-            <input class="field" id="client-id" type="text" autocomplete="off">
+            <input class="field" id="client-id" type="text" autocomplete="off" value="aa73d66f565e4f28840c017cf439e73a">
           </div>
 
           <div class="form-row">
             <label class="input-label" for="redirect-uri">Redirect URI</label>
-            <input class="field" id="redirect-uri" type="url" autocomplete="off">
+            <input class="field" id="redirect-uri" type="url" autocomplete="off" value="https://avejohnb.github.io/hitster/">
           </div>
 
           <div class="btn-row">
-            <button id="login-btn" class="btn btn-primary">Inloggen met Spotify</button>
+            <button id="login-btn" class="btn btn-primary" type="button">Inloggen met Spotify</button>
             <button id="reset-btn" class="btn btn-secondary" type="button">Reset gegevens</button>
           </div>
 
@@ -781,8 +802,15 @@
         </div>
 
         <div class="btn-row">
+          <button id="mobile-scan-btn" class="btn btn-primary" type="button">Scan volgende QR</button>
           <button id="mobile-reveal-btn" class="btn btn-secondary" type="button">Toon songinfo</button>
           <button id="mobile-hide-btn" class="btn btn-secondary hidden" type="button">Verberg info weer</button>
+        </div>
+
+        <div id="scanner-panel" class="scanner-panel">
+          <video id="scanner-video" class="scanner-video" playsinline muted></video>
+          <div id="scanner-status" class="status">Richt de camera op de volgende QR-code.</div>
+          <button id="scanner-stop-btn" class="btn btn-secondary" type="button">Stop scanner</button>
         </div>
 
         <div id="mobile-reveal" class="mobile-reveal">
@@ -801,6 +829,7 @@
     </div>
   </div>
 
+  <script src="https://unpkg.com/jsqr/dist/jsQR.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
   <script>
     const DEFAULT_CLIENT_ID = "aa73d66f565e4f28840c017cf439e73a";
@@ -828,11 +857,13 @@
 
     const mobileState = {
       player: null,
-eer       deviceId: null,
+      deviceId: null,
       sdkReady: false,
       sdkWaiter: null,
       track: null,
-      playerPromise: null
+      playerPromise: null,
+      scannerStream: null,
+      scannerFrame: null
     };
 
     const fatalError = document.getElementById("fatal-error");
@@ -866,6 +897,9 @@ eer       deviceId: null,
     const mobileArtist = document.getElementById("mobile-artist");
     const mobileTitle = document.getElementById("mobile-title");
     const mobileHideBtn = document.getElementById("mobile-hide-btn");
+    const scannerPanel = document.getElementById("scanner-panel");
+    const scannerVideo = document.getElementById("scanner-video");
+    const scannerStatus = document.getElementById("scanner-status");
 
     document.getElementById("login-btn").addEventListener("click", startLogin);
     document.getElementById("reset-btn").addEventListener("click", resetStoredConfig);
@@ -876,7 +910,9 @@ eer       deviceId: null,
     document.getElementById("next-btn").addEventListener("click", nextRound);
     document.getElementById("copy-link-btn").addEventListener("click", copyPhoneLink);
     document.getElementById("mobile-play-btn").addEventListener("click", playMobilePreview);
+    document.getElementById("mobile-scan-btn").addEventListener("click", startQrScanner);
     document.getElementById("mobile-reveal-btn").addEventListener("click", toggleMobileReveal);
+    document.getElementById("scanner-stop-btn").addEventListener("click", stopQrScanner);
     mobileHideBtn.addEventListener("click", hideMobileReveal);
 
     window.addEventListener("error", (event) => {
@@ -973,47 +1009,53 @@ eer       deviceId: null,
     }
 
     async function startLogin() {
-      const clientId = clientIdInput.value.trim();
-      const redirectUri = redirectUriInput.value.trim();
+      try {
+        const clientId = clientIdInput.value.trim();
+        const redirectUri = redirectUriInput.value.trim();
 
-      if (!clientId) {
-        loginStatus.textContent = "Vul eerst een geldige Client ID in.";
-        return;
+        if (!clientId) {
+          loginStatus.textContent = "Vul eerst een geldige Client ID in.";
+          return;
+        }
+
+        if (!redirectUri) {
+          loginStatus.textContent = "Vul eerst een geldige Redirect URI in.";
+          return;
+        }
+
+        loginStatus.textContent = "Login voorbereiden...";
+        saveConfig();
+
+        const verifier = generateRandomString(64);
+        const challenge = await generateCodeChallenge(verifier);
+        const state = generateRandomString(24);
+
+        localStorage.setItem(STORAGE_PREFIX + "verifier", verifier);
+        localStorage.setItem(STORAGE_PREFIX + "state", state);
+
+        const authParams = new URLSearchParams({
+          client_id: clientId,
+          response_type: "code",
+          redirect_uri: redirectUri,
+          scope: [
+            "streaming",
+            "user-read-email",
+            "user-read-private",
+            "user-read-playback-state",
+            "user-modify-playback-state"
+          ].join(" "),
+          code_challenge_method: "S256",
+          code_challenge: challenge,
+          state: state,
+          show_dialog: "true"
+        });
+
+        loginStatus.textContent = "Doorsturen naar Spotify...";
+        window.location.href = AUTH_ENDPOINT + "?" + authParams.toString();
+      } catch (error) {
+        console.error(error);
+        loginStatus.textContent = error.message || "Spotify-login voorbereiden mislukte.";
       }
-
-      if (!redirectUri) {
-        loginStatus.textContent = "Vul eerst een geldige Redirect URI in.";
-        return;
-      }
-
-      saveConfig();
-
-      const verifier = generateRandomString(64);
-      const challenge = await generateCodeChallenge(verifier);
-      const state = generateRandomString(24);
-
-      localStorage.setItem(STORAGE_PREFIX + "verifier", verifier);
-      localStorage.setItem(STORAGE_PREFIX + "state", state);
-
-      const authParams = new URLSearchParams({
-        client_id: clientId,
-        response_type: "code",
-        redirect_uri: redirectUri,
-        scope: [
-          "streaming",
-          "user-read-email",
-          "user-read-private",
-          "user-read-playback-state",
-          "user-modify-playback-state"
-        ].join(" "),
-        code_challenge_method: "S256",
-        code_challenge: challenge,
-        state: state,
-        show_dialog: "true"
-      });
-
-      loginStatus.textContent = "Doorsturen naar Spotify...";
-      window.location.href = AUTH_ENDPOINT + "?" + authParams.toString();
     }
 
     async function exchangeCodeForToken(code) {
@@ -1374,6 +1416,10 @@ eer       deviceId: null,
         mobileYear.textContent = normalizedTrack.year || "-";
         mobileArtist.textContent = normalizedTrack.artist || "-";
         mobileTitle.textContent = normalizedTrack.title || "-";
+        mobileReveal.classList.remove("visible");
+        mobileHideBtn.classList.add("hidden");
+        stopQrScanner();
+        updateMobileUrl(encodedTrack);
         prepareMobilePlayer(normalizedTrack.token).catch((error) => {
           console.error(error);
           mobileStatus.textContent = error.message || "Spotify speler voorbereiden mislukte.";
@@ -1555,12 +1601,105 @@ eer       deviceId: null,
       mobileReveal.classList.add("visible");
       mobileHideBtn.classList.remove("hidden");
       mobileStatus.textContent = "Songinfo onthuld.";
+      startQrScanner();
     }
 
     function hideMobileReveal() {
       mobileReveal.classList.remove("visible");
       mobileHideBtn.classList.add("hidden");
       mobileStatus.textContent = "Songinfo weer verborgen.";
+    }
+
+    async function startQrScanner() {
+      try {
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+          throw new Error("Deze browser ondersteunt geen camera-scanner.");
+        }
+
+        stopQrScanner();
+        scannerPanel.classList.add("visible");
+        scannerStatus.textContent = "Camera openen...";
+
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: { ideal: "environment" } },
+          audio: false
+        });
+
+        mobileState.scannerStream = stream;
+        scannerVideo.srcObject = stream;
+        await scannerVideo.play();
+        scannerStatus.textContent = "Richt de camera op de volgende QR-code.";
+        scanQrFrame();
+      } catch (error) {
+        console.error(error);
+        scannerPanel.classList.add("visible");
+        scannerStatus.textContent = error.message || "Scanner starten mislukte.";
+      }
+    }
+
+    function scanQrFrame() {
+      if (!mobileState.scannerStream) {
+        return;
+      }
+
+      const width = scannerVideo.videoWidth;
+      const height = scannerVideo.videoHeight;
+
+      if (!width || !height) {
+        mobileState.scannerFrame = requestAnimationFrame(scanQrFrame);
+        return;
+      }
+
+      const canvas = document.createElement("canvas");
+      canvas.width = width;
+      canvas.height = height;
+      const context = canvas.getContext("2d", { willReadFrequently: true });
+      context.drawImage(scannerVideo, 0, 0, width, height);
+      const imageData = context.getImageData(0, 0, width, height);
+      const result = window.jsQR ? window.jsQR(imageData.data, width, height) : null;
+
+      if (result && result.data) {
+        handleScannedQr(result.data);
+        return;
+      }
+
+      mobileState.scannerFrame = requestAnimationFrame(scanQrFrame);
+    }
+
+    function handleScannedQr(rawValue) {
+      try {
+        const url = new URL(rawValue, window.location.origin);
+        const encodedTrack = url.searchParams.get("track");
+        const mode = url.searchParams.get("mode");
+
+        if (mode !== "play" || !encodedTrack) {
+          throw new Error("Dit is geen geldige Hitster QR-code.");
+        }
+
+        scannerStatus.textContent = "QR-code gelezen. Nieuwe ronde laden...";
+        stopQrScanner();
+        renderMobileMode(encodedTrack);
+      } catch (error) {
+        console.error(error);
+        scannerStatus.textContent = error.message || "QR-code kon niet gelezen worden.";
+        mobileState.scannerFrame = requestAnimationFrame(scanQrFrame);
+      }
+    }
+
+    function stopQrScanner() {
+      if (mobileState.scannerFrame) {
+        cancelAnimationFrame(mobileState.scannerFrame);
+        mobileState.scannerFrame = null;
+      }
+
+      if (mobileState.scannerStream) {
+        mobileState.scannerStream.getTracks().forEach((track) => track.stop());
+        mobileState.scannerStream = null;
+      }
+
+      scannerVideo.pause();
+      scannerVideo.srcObject = null;
+      scannerPanel.classList.remove("visible");
     }
 
     function logout(clearMessage = true) {
@@ -1585,6 +1724,15 @@ eer       deviceId: null,
       url.searchParams.set("mode", "play");
       url.searchParams.set("track", encodedTrack);
       return url.toString();
+    }
+
+    function updateMobileUrl(encodedTrack) {
+      const url = new URL(window.location.href);
+      url.searchParams.set("mode", "play");
+      url.searchParams.set("track", encodedTrack);
+      url.searchParams.delete("code");
+      url.searchParams.delete("state");
+      window.history.replaceState({}, document.title, url.toString());
     }
 
     function encodePayload(payload) {

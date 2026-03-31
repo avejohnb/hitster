@@ -878,7 +878,7 @@
   <script>
     const DEFAULT_CLIENT_ID = "aa73d66f565e4f28840c017cf439e73a";
     const DEFAULT_REDIRECT_URI = "https://avejohnb.github.io/hitster/";
-    const APP_VERSION = "v2026.03.31-9";
+    const APP_VERSION = "v2026.03.31-10";
     const AUTH_ENDPOINT = "https://accounts.spotify.com/authorize";
     const TOKEN_ENDPOINT = "https://accounts.spotify.com/api/token";
     const API_BASE = "https://api.spotify.com/v1";
@@ -900,6 +900,7 @@
 
     const appState = {
       accessToken: null,
+      userCountry: "",
       currentTrack: null,
       roundNumber: 0,
       revealed: false,
@@ -1039,6 +1040,7 @@
           const token = await exchangeCodeForToken(code);
           localStorage.setItem(STORAGE_PREFIX + "access_token", token);
           appState.accessToken = token;
+          await hydrateUserProfile();
           clearAuthParamsFromUrl();
           showHostIdleState();
           return;
@@ -1047,6 +1049,7 @@
         const storedToken = localStorage.getItem(STORAGE_PREFIX + "access_token");
         if (storedToken) {
           appState.accessToken = storedToken;
+          await hydrateUserProfile();
           loginStatus.textContent = "Bestaande sessie gevonden.";
           showHostIdleState();
         }
@@ -1217,18 +1220,27 @@
         return;
       }
 
-      saveConfig();
-      if (!appState.importedTracks.length) {
-        hostStatus.textContent = "Importeer eerst een playlist naar de lokale trackpool.";
-        importStatus.textContent = "Importeer eerst minstens een playlist met tracks.";
-        importStatusHost.textContent = "Importeer eerst minstens een playlist met tracks.";
-        return;
+      try {
+        if (!appState.userCountry) {
+          await hydrateUserProfile();
+        }
+
+        saveConfig();
+        if (!appState.importedTracks.length) {
+          hostStatus.textContent = "Importeer eerst een playlist naar de lokale trackpool.";
+          importStatus.textContent = "Importeer eerst minstens een playlist met tracks.";
+          importStatusHost.textContent = "Importeer eerst minstens een playlist met tracks.";
+          return;
+        }
+        appState.roundNumber = 0;
+        appState.usedTrackIds = new Set();
+        appState.gameActive = true;
+        showScreen("screen-host");
+        await loadNextRandomTrack();
+      } catch (error) {
+        console.error(error);
+        hostStatus.textContent = error.message || "Spel starten mislukte.";
       }
-      appState.roundNumber = 0;
-      appState.usedTrackIds = new Set();
-      appState.gameActive = true;
-      showScreen("screen-host");
-      await loadNextRandomTrack();
     }
 
     function stopGame() {
@@ -1308,6 +1320,9 @@
       importStatus.textContent = "Playlist(s) importeren...";
       importStatusHost.textContent = "Playlist(s) importeren...";
       try {
+        if (!appState.userCountry) {
+          await hydrateUserProfile();
+        }
         const tracks = await loadPlaylistPool();
         appState.importedTracks = tracks;
         localStorage.setItem(STORAGE_PREFIX + "imported_tracks", JSON.stringify(tracks));
@@ -1418,6 +1433,7 @@
       let offset = 0;
       let totalItemsSeen = 0;
       let totalTrackCandidates = 0;
+      const market = getMarketQuery();
 
       while (offset < 1000) {
         const url =
@@ -1426,7 +1442,8 @@
           encodeURIComponent(playlistId) +
           "/tracks?limit=100&offset=" +
           offset +
-          "&additional_types=track";
+          "&additional_types=track" +
+          market;
         const response = await fetch(url, {
           headers: {
             Authorization: "Bearer " + appState.accessToken
@@ -1463,13 +1480,15 @@
 
     async function fetchPlaylistTracksViaPlaylistEndpoint(playlistId) {
       const fields = encodeURIComponent("tracks.items(track(id,name,uri,is_local,popularity,duration_ms,artists(name),album(name,album_type,release_date,images),external_urls)),tracks.next");
+      const market = getMarketQuery();
       const url =
         API_BASE +
         "/playlists/" +
         encodeURIComponent(playlistId) +
         "?fields=" +
         fields +
-        "&additional_types=track";
+        "&additional_types=track" +
+        market;
       const response = await fetch(url, {
         headers: {
           Authorization: "Bearer " + appState.accessToken
@@ -1527,7 +1546,12 @@
     }
 
     async function fetchPlaylistMetadata(playlistId) {
-      const url = API_BASE + "/playlists/" + encodeURIComponent(playlistId) + "?fields=name,tracks(total)";
+      const url =
+        API_BASE +
+        "/playlists/" +
+        encodeURIComponent(playlistId) +
+        "?fields=name,tracks(total)" +
+        getMarketQuery();
       const response = await fetch(url, {
         headers: {
           Authorization: "Bearer " + appState.accessToken
@@ -1560,6 +1584,31 @@
       }
 
       return null;
+    }
+
+    async function hydrateUserProfile() {
+      if (!appState.accessToken) {
+        return;
+      }
+
+      const url = API_BASE + "/me";
+      const response = await fetch(url, {
+        headers: {
+          Authorization: "Bearer " + appState.accessToken
+        }
+      });
+
+      if (!response.ok) {
+        const body = await response.text();
+        throw new Error("Spotify profiel fout " + response.status + " via " + url + ": " + body);
+      }
+
+      const data = await response.json();
+      appState.userCountry = (data.country || "").trim().toUpperCase();
+    }
+
+    function getMarketQuery() {
+      return appState.userCountry ? "&market=" + encodeURIComponent(appState.userCountry) : "";
     }
 
     function hasPlayableTrack(track, minPopularity) {

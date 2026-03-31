@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Hitster QR</title>
+  <title>Hitster family B editie</title>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&display=swap');
 
@@ -575,16 +575,16 @@
     <div class="shell">
       <section class="hero">
         <div class="hero-copy">
-          <div class="eyebrow">QR party game</div>
-          <h1>Hitster-achtige spelpagina met Spotify.</h1>
+          <div class="eyebrow">Hitster family B editie</div>
+          <h1>Oneindige Hitster-rondes met Spotify en QR.</h1>
           <p>
-            Log in, laat een QR-code zien, scan die met een telefoon en speel een nummerfragment af zonder zichtbare metadata.
-            Op de host vul je het releasejaar in, onthul je artiest, titel en jaartal, en ga je direct door naar de volgende ronde.
+            Log in, start het spel, laat een QR-code zien, scan die met een telefoon en speel een nummerfragment af zonder zichtbare metadata.
+            Op de host vul je het releasejaar in, onthul je artiest, titel en jaartal, en laat je daarna direct een nieuwe willekeurige ronde genereren.
           </p>
           <div class="hero-points">
-            <div>Hostmodus na login met automatisch gegenereerde QR-code per ronde.</div>
+            <div>Hostmodus met start- en stopknop voor de speelsessie.</div>
             <div>Telefoonmodus zonder songinfo tot je op onthullen drukt.</div>
-            <div>Gebouwd als statische pagina voor GitHub Pages, zonder server.</div>
+            <div>Nieuwe nummers worden live via Spotify gezocht, zonder vaste voorraad of maximum.</div>
           </div>
         </div>
 
@@ -603,15 +603,6 @@
           <div class="form-row">
             <label class="input-label" for="redirect-uri">Redirect URI</label>
             <input class="field" id="redirect-uri" type="url" autocomplete="off">
-          </div>
-
-          <div class="form-row">
-            <label class="input-label" for="deck-size">Aantal rondes</label>
-            <select class="field" id="deck-size">
-              <option value="5">5 nummers</option>
-              <option value="10" selected>10 nummers</option>
-              <option value="15">15 nummers</option>
-            </select>
           </div>
 
           <div class="btn-row">
@@ -636,26 +627,27 @@
           <div>
             <div class="eyebrow">Hostmodus</div>
             <h2>Scan, luister, gok en onthul.</h2>
-            <p>De telefoon krijgt alleen de fragmentspeler. De host ziet het antwoord pas na onthullen.</p>
+            <p>Start het spel om een nieuwe willekeurige track op te halen. De telefoon krijgt alleen de fragmentspeler. De host ziet het antwoord pas na onthullen.</p>
           </div>
           <div class="btn-row">
+            <button id="start-game-btn" class="btn btn-primary" type="button">Start spel</button>
+            <button id="stop-game-btn" class="btn btn-danger" type="button">Stop spel</button>
             <button id="logout-btn" class="btn btn-secondary" type="button">Uitloggen</button>
-            <button id="new-deck-btn" class="btn btn-secondary" type="button">Nieuwe deck</button>
           </div>
         </div>
 
         <div class="stats">
           <div class="stat">
             <span class="stat-label">Ronde</span>
-            <strong id="round-label">1 / 10</strong>
+            <strong id="round-label">0</strong>
           </div>
           <div class="stat">
-            <span class="stat-label">Deck</span>
-            <strong id="deck-label">Laden...</strong>
+            <span class="stat-label">Status</span>
+            <strong id="deck-label">Klaar</strong>
           </div>
           <div class="stat">
-            <span class="stat-label">Voorbeeld</span>
-            <strong id="preview-label">Zoeken...</strong>
+            <span class="stat-label">Bron</span>
+            <strong id="preview-label">Spotify live</strong>
           </div>
         </div>
 
@@ -672,7 +664,7 @@
         <div class="guess-panel">
           <div>
             <div class="kicker">Jouw gok</div>
-            <p class="helper">Vul het releasejaar in. Daarna kun je het antwoord tonen en meteen verder naar de volgende track.</p>
+            <p class="helper">Vul het releasejaar in. Daarna kun je het antwoord tonen en meteen een nieuwe willekeurige track genereren.</p>
           </div>
 
           <div class="guess-row">
@@ -702,7 +694,7 @@
           </div>
 
           <div class="round-actions">
-            <button id="next-btn" class="btn btn-secondary" type="button">Volgende QR-code</button>
+            <button id="next-btn" class="btn btn-secondary" type="button">Nieuwe QR-code</button>
             <button id="copy-link-btn" class="btn btn-secondary" type="button">Kopieer telefoonlink</button>
           </div>
         </div>
@@ -722,8 +714,8 @@
 
         <div id="empty-view" class="empty-state hidden">
           <div>
-            <div class="kicker">Geen deck</div>
-            <p>Ik heb niet genoeg tracks met een Spotify-preview gevonden. Maak een nieuwe deck of controleer je login.</p>
+            <div class="kicker">Wacht op start</div>
+            <p>Start het spel om een willekeurige track met previewfragment op te halen.</p>
           </div>
         </div>
       </section>
@@ -734,7 +726,7 @@
     <div class="mobile-wrap">
       <section class="mobile-card">
         <div>
-          <div class="eyebrow">Telefoonmodus</div>
+          <div class="eyebrow">Hitster family B editie</div>
           <h2>Luister zonder spoilers.</h2>
         </div>
 
@@ -775,25 +767,17 @@
     const TOKEN_ENDPOINT = "https://accounts.spotify.com/api/token";
     const API_BASE = "https://api.spotify.com/v1";
     const STORAGE_PREFIX = "hitster_qr_";
-    const TRACK_POOL = [
-      "3n3Ppam7vgaVa1iaRUc9Lp","7ouMYWpwJ422jRcDASZB7P","2takcwOaAZWiXQijPHIx7B","4cOdK2wGLETKBW3PvgPWqT",
-      "1301WleyT98MSxVHPZCA6M","2dLLR6qlu5UJ5gk0dKz0h3","0VjIjW4GlUZAMYd2vXMi3b","1mea3bSkSGXuIRvnydlB5b",
-      "4uLU6hMCjMI75M1A2tKUQC","6habFhsOp2NvshLv26DqMb","6DCZcSspjsKoFjzjrWoCd","5CtI0qwDJkDQGwXD1H1cLb",
-      "2RlgNHKcydI9sayD2Df2xp","0eGsygTp906u18L0Oimnem","2X485T9Z5Ly0xyaghN73ed","4VqPOruhp5EdPBeR92t6lQ",
-      "3AJwUDP919kvQ9QcozQPxg","7BKLCZ1jbUBVqRi2FVlTVw","0TK2YIli7K1leLovkQiNik","2b8fOow8UzyDFAE27YhOZM",
-      "7lQ8MOhq6IN2w8EYcFNSUk","1zB4vmk8tFRmM9UULNzbLB","0ofHAoxe9vBkTCp2UQIavz","3AhXZa8sUQht0UEdBJgpGc",
-      "2EEeOnHehOozLq4aS0n6SL","0Svkvt5I79wficMFgaqEQJ","1lDWb6b6ieDQ2xT7ewTC3G","0VXA6rj31VnZwUwWwsQbfe",
-      "4c2xt1trwYZpMqPWY35Xi9","5ghIJDpPoe3CfHMGu71E6T"
-    ];
+    const SEARCH_CHARS = "abcdefghijklmnopqrstuvwxyz0123456789";
 
     const appState = {
       accessToken: null,
-      deck: [],
-      currentIndex: 0,
+      currentTrack: null,
+      roundNumber: 0,
       revealed: false,
-      deckSize: 10,
       currentPhoneUrl: "",
-      qrCode: null
+      qrCode: null,
+      gameActive: false,
+      usedTrackIds: new Set()
     };
 
     const loginScreen = document.getElementById("screen-login");
@@ -803,7 +787,6 @@
     const hostStatus = document.getElementById("host-status");
     const clientIdInput = document.getElementById("client-id");
     const redirectUriInput = document.getElementById("redirect-uri");
-    const deckSizeSelect = document.getElementById("deck-size");
     const qrHint = document.getElementById("qr-hint");
     const qrCodeEl = document.getElementById("qr-code");
     const roundLabel = document.getElementById("round-label");
@@ -829,8 +812,9 @@
 
     document.getElementById("login-btn").addEventListener("click", startLogin);
     document.getElementById("reset-btn").addEventListener("click", resetStoredConfig);
+    document.getElementById("start-game-btn").addEventListener("click", startGame);
+    document.getElementById("stop-game-btn").addEventListener("click", stopGame);
     document.getElementById("logout-btn").addEventListener("click", logout);
-    document.getElementById("new-deck-btn").addEventListener("click", buildDeck);
     document.getElementById("reveal-btn").addEventListener("click", revealCurrentTrack);
     document.getElementById("next-btn").addEventListener("click", nextRound);
     document.getElementById("copy-link-btn").addEventListener("click", copyPhoneLink);
@@ -866,15 +850,15 @@
           localStorage.setItem(STORAGE_PREFIX + "access_token", token);
           appState.accessToken = token;
           clearAuthParamsFromUrl();
-          await buildDeck();
+          showHostIdleState();
           return;
         }
 
         const storedToken = localStorage.getItem(STORAGE_PREFIX + "access_token");
         if (storedToken) {
           appState.accessToken = storedToken;
-          loginStatus.textContent = "Bestaande sessie gevonden. Deck laden...";
-          await buildDeck();
+          loginStatus.textContent = "Bestaande sessie gevonden.";
+          showHostIdleState();
         }
       } catch (error) {
         console.error(error);
@@ -886,19 +870,16 @@
     function fillSavedConfig() {
       clientIdInput.value = localStorage.getItem(STORAGE_PREFIX + "client_id") || DEFAULT_CLIENT_ID;
       redirectUriInput.value = localStorage.getItem(STORAGE_PREFIX + "redirect_uri") || DEFAULT_REDIRECT_URI;
-      deckSizeSelect.value = localStorage.getItem(STORAGE_PREFIX + "deck_size") || "10";
     }
 
     function saveConfig() {
       localStorage.setItem(STORAGE_PREFIX + "client_id", clientIdInput.value.trim());
       localStorage.setItem(STORAGE_PREFIX + "redirect_uri", redirectUriInput.value.trim());
-      localStorage.setItem(STORAGE_PREFIX + "deck_size", deckSizeSelect.value);
     }
 
     function resetStoredConfig() {
       localStorage.removeItem(STORAGE_PREFIX + "client_id");
       localStorage.removeItem(STORAGE_PREFIX + "redirect_uri");
-      localStorage.removeItem(STORAGE_PREFIX + "deck_size");
       fillSavedConfig();
       loginStatus.textContent = "Opgeslagen gegevens zijn teruggezet naar de standaardwaarden.";
     }
@@ -906,7 +887,6 @@
     async function startLogin() {
       const clientId = clientIdInput.value.trim();
       const redirectUri = redirectUriInput.value.trim();
-      const deckSize = deckSizeSelect.value;
 
       if (!clientId) {
         loginStatus.textContent = "Vul eerst een geldige Client ID in.";
@@ -926,7 +906,6 @@
 
       localStorage.setItem(STORAGE_PREFIX + "verifier", verifier);
       localStorage.setItem(STORAGE_PREFIX + "state", state);
-      localStorage.setItem(STORAGE_PREFIX + "deck_size", deckSize);
 
       const authParams = new URLSearchParams({
         client_id: clientId,
@@ -979,40 +958,80 @@
       return data.access_token;
     }
 
-    async function buildDeck() {
+    function showHostIdleState() {
       if (!appState.accessToken) {
         showScreen("screen-login");
         return;
       }
 
       showScreen("screen-host");
-      hostStatus.textContent = "Tracks met previewfragmenten ophalen...";
-      deckLabel.textContent = "Laden...";
-      previewLabel.textContent = "Zoeken...";
-      emptyView.classList.add("hidden");
-      coverView.classList.remove("hidden");
+      hostStatus.textContent = "Klaar om te starten.";
+      deckLabel.textContent = appState.gameActive ? "Actief" : "Stand-by";
+      previewLabel.textContent = "Spotify live";
+      roundLabel.textContent = String(appState.roundNumber);
       revealCard.classList.remove("visible");
       guessFeedback.textContent = "";
+      yearGuessInput.value = "";
+      appState.currentPhoneUrl = "";
+      qrCodeEl.innerHTML = "";
+      qrHint.textContent = "Start het spel om een QR-code voor een willekeurige track te genereren.";
+      coverView.classList.add("hidden");
+      emptyView.classList.remove("hidden");
+      emptyView.innerHTML =
+        "<div>" +
+        "<div class='kicker'>Wacht op start</div>" +
+        "<p>Druk op 'Start spel' om direct de eerste willekeurige ronde op te halen.</p>" +
+        "</div>";
+    }
 
-      appState.deckSize = Number(localStorage.getItem(STORAGE_PREFIX + "deck_size") || deckSizeSelect.value || 10);
-      appState.currentIndex = 0;
+    async function startGame() {
+      if (!appState.accessToken) {
+        showScreen("screen-login");
+        loginStatus.textContent = "Log eerst in met Spotify.";
+        return;
+      }
+
+      appState.roundNumber = 0;
+      appState.usedTrackIds = new Set();
+      appState.gameActive = true;
+      showScreen("screen-host");
+      await loadNextRandomTrack();
+    }
+
+    function stopGame() {
+      appState.gameActive = false;
+      appState.currentTrack = null;
+      appState.currentPhoneUrl = "";
       appState.revealed = false;
+      showHostIdleState();
+      hostStatus.textContent = "Spel gestopt.";
+    }
+
+    async function loadNextRandomTrack() {
+      if (!appState.gameActive) {
+        showHostIdleState();
+        return;
+      }
+
+      showScreen("screen-host");
+      hostStatus.textContent = "Willekeurige Spotify-track zoeken...";
+      deckLabel.textContent = "Zoeken";
+      previewLabel.textContent = "Preview vereist";
+      guessFeedback.textContent = "";
+      answerExtra.textContent = "";
+      revealCard.classList.remove("visible");
+      yearGuessInput.value = "";
+      qrCodeEl.innerHTML = "";
+      qrHint.textContent = "Nieuwe QR-code wordt gegenereerd.";
 
       try {
-        const tracks = await fetchTracks(TRACK_POOL);
-        const withPreview = shuffle(tracks.filter(hasUsablePreview));
-        const selected = withPreview.slice(0, appState.deckSize);
-
-        if (selected.length === 0) {
-          appState.deck = [];
-          renderEmptyDeck();
-          return;
-        }
-
-        appState.deck = selected.map(mapTrack);
-        deckLabel.textContent = appState.deck.length + " tracks";
-        previewLabel.textContent = appState.deck.length + " previews";
-        hostStatus.textContent = "Deck geladen. Laat de QR-code scannen voor ronde 1.";
+        const track = await fetchRandomTrack();
+        appState.currentTrack = track;
+        appState.roundNumber += 1;
+        roundLabel.textContent = String(appState.roundNumber);
+        deckLabel.textContent = "Actief";
+        previewLabel.textContent = "Gevonden";
+        hostStatus.textContent = "Ronde " + appState.roundNumber + " staat klaar.";
         renderCurrentRound();
       } catch (error) {
         console.error(error);
@@ -1021,20 +1040,17 @@
           loginStatus.textContent = "Sessie verlopen. Log opnieuw in.";
           return;
         }
-        hostStatus.textContent = "Deck laden mislukte: " + (error.message || "onbekende fout");
+        hostStatus.textContent = "Geen speelbare track gevonden: " + (error.message || "onbekende fout");
         renderEmptyDeck();
       }
     }
 
-    async function fetchTracks(ids) {
-      const chunks = [];
-      for (let index = 0; index < ids.length; index += 20) {
-        chunks.push(ids.slice(index, index + 20));
-      }
-
-      const tracks = [];
-      for (const chunk of chunks) {
-        const url = API_BASE + "/tracks?market=from_token&ids=" + encodeURIComponent(chunk.join(","));
+    async function fetchRandomTrack() {
+      const attempts = 16;
+      for (let attempt = 0; attempt < attempts; attempt += 1) {
+        const query = buildRandomSearchQuery();
+        const offset = Math.floor(Math.random() * 200);
+        const url = API_BASE + "/search?type=track&limit=50&market=from_token&offset=" + offset + "&q=" + encodeURIComponent(query);
         const response = await fetch(url, {
           headers: {
             Authorization: "Bearer " + appState.accessToken
@@ -1046,10 +1062,25 @@
         }
 
         const data = await response.json();
-        tracks.push(...(data.tracks || []));
+        const items = (data.tracks && data.tracks.items ? data.tracks.items : [])
+          .filter(hasUsablePreview)
+          .filter((track) => !appState.usedTrackIds.has(track.id));
+
+        if (items.length) {
+          const track = mapTrack(items[Math.floor(Math.random() * items.length)]);
+          appState.usedTrackIds.add(track.id);
+          return track;
+        }
       }
 
-      return tracks.filter(Boolean);
+      throw new Error("Spotify leverde tijdelijk geen nieuwe tracks met previewfragment.");
+    }
+
+    function buildRandomSearchQuery() {
+      const yearStart = 1960 + Math.floor(Math.random() * 65);
+      const yearEnd = Math.min(yearStart + Math.floor(Math.random() * 3), 2025);
+      const chars = shuffle(SEARCH_CHARS.split("")).slice(0, 2).join(" ");
+      return "track:" + chars + " year:" + yearStart + "-" + yearEnd;
     }
 
     function hasUsablePreview(track) {
@@ -1078,9 +1109,9 @@
     }
 
     function renderCurrentRound() {
-      const track = appState.deck[appState.currentIndex];
+      const track = appState.currentTrack;
       if (!track) {
-        renderFinishedState();
+        renderEmptyDeck();
         return;
       }
 
@@ -1088,10 +1119,12 @@
       revealCard.classList.remove("visible");
       yearGuessInput.value = "";
       guessFeedback.textContent = "";
-      roundLabel.textContent = (appState.currentIndex + 1) + " / " + appState.deck.length;
-      deckLabel.textContent = appState.deck.length + " tracks";
-      previewLabel.textContent = "Klaar";
-      hostStatus.textContent = "Ronde " + (appState.currentIndex + 1) + " staat klaar.";
+      roundLabel.textContent = String(appState.roundNumber);
+      deckLabel.textContent = "Actief";
+      previewLabel.textContent = "Gevonden";
+      hostStatus.textContent = "Ronde " + appState.roundNumber + " staat klaar.";
+      emptyView.classList.add("hidden");
+      coverView.classList.remove("hidden");
       renderMaskedCover(track);
       renderQrCode(track);
     }
@@ -1106,7 +1139,7 @@
       mask.className = "cover-mask";
       mask.innerHTML =
         "<div>" +
-        "<strong>Ronde " + (appState.currentIndex + 1) + "</strong>" +
+        "<strong>Ronde " + appState.roundNumber + "</strong>" +
         "<span>Scan de QR-code op een telefoon en luister zonder zichtbare titel of artiest.</span>" +
         "</div>";
 
@@ -1142,7 +1175,7 @@
     }
 
     function revealCurrentTrack() {
-      const track = appState.deck[appState.currentIndex];
+      const track = appState.currentTrack;
       if (!track) {
         return;
       }
@@ -1169,38 +1202,17 @@
     }
 
     function nextRound() {
-      if (appState.currentIndex < appState.deck.length - 1) {
-        appState.currentIndex += 1;
-        renderCurrentRound();
-        return;
-      }
-
-      renderFinishedState();
-    }
-
-    function renderFinishedState() {
-      revealCard.classList.remove("visible");
-      qrCodeEl.innerHTML = "";
-      roundLabel.textContent = appState.deck.length + " / " + appState.deck.length;
-      qrHint.textContent = "Deck afgerond. Maak een nieuwe deck om opnieuw te spelen.";
-      coverView.classList.add("hidden");
-      emptyView.classList.remove("hidden");
-      emptyView.innerHTML =
-        "<div>" +
-        "<div class='kicker'>Klaar</div>" +
-        "<p>Alle rondes zijn gespeeld. Klik op 'Nieuwe deck' om meteen opnieuw te beginnen.</p>" +
-        "</div>";
-      hostStatus.textContent = "Deck afgerond.";
-      guessFeedback.textContent = "";
+      loadNextRandomTrack();
     }
 
     function renderEmptyDeck() {
-      appState.deck = [];
+      appState.currentTrack = null;
+      appState.currentPhoneUrl = "";
       qrCodeEl.innerHTML = "";
-      qrHint.textContent = "Nog geen speelbare tracks gevonden.";
-      roundLabel.textContent = "0 / 0";
-      deckLabel.textContent = "0 tracks";
-      previewLabel.textContent = "0 previews";
+      qrHint.textContent = "Nog geen speelbare track klaar.";
+      roundLabel.textContent = String(appState.roundNumber);
+      deckLabel.textContent = appState.gameActive ? "Actief" : "Stand-by";
+      previewLabel.textContent = "Spotify live";
       coverView.classList.add("hidden");
       emptyView.classList.remove("hidden");
       revealCard.classList.remove("visible");
@@ -1264,9 +1276,11 @@
 
     function logout(clearMessage = true) {
       appState.accessToken = null;
-      appState.deck = [];
-      appState.currentIndex = 0;
+      appState.currentTrack = null;
+      appState.roundNumber = 0;
       appState.currentPhoneUrl = "";
+      appState.gameActive = false;
+      appState.usedTrackIds = new Set();
       localStorage.removeItem(STORAGE_PREFIX + "access_token");
       localStorage.removeItem(STORAGE_PREFIX + "verifier");
       localStorage.removeItem(STORAGE_PREFIX + "state");

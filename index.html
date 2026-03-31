@@ -861,7 +861,7 @@
   <script>
     const DEFAULT_CLIENT_ID = "aa73d66f565e4f28840c017cf439e73a";
     const DEFAULT_REDIRECT_URI = "https://avejohnb.github.io/hitster/";
-    const APP_VERSION = "v2026.03.31-3";
+    const APP_VERSION = "v2026.03.31-5";
     const AUTH_ENDPOINT = "https://accounts.spotify.com/authorize";
     const TOKEN_ENDPOINT = "https://accounts.spotify.com/api/token";
     const API_BASE = "https://api.spotify.com/v1";
@@ -1276,10 +1276,15 @@
 
       const tracks = [];
       const failedPlaylists = [];
+      const emptyPlaylists = [];
 
       for (const playlistId of playlistIds) {
         try {
           const playlistTracks = await fetchPlaylistTracks(playlistId);
+          if (!playlistTracks.length) {
+            emptyPlaylists.push(playlistId);
+            continue;
+          }
           tracks.push(...playlistTracks);
         } catch (error) {
           console.warn("Playlist load failed", playlistId, error);
@@ -1298,7 +1303,14 @@
       }
 
       if (!uniqueTracks.length) {
-        throw new Error("Kon geen tracks uit de opgegeven playlists laden. Mislukte playlists: " + failedPlaylists.join(" | "));
+        const parts = [];
+        if (failedPlaylists.length) {
+          parts.push("Mislukte playlists: " + failedPlaylists.join(" | "));
+        }
+        if (emptyPlaylists.length) {
+          parts.push("Lege playlists of geen track-items: " + emptyPlaylists.join(" | "));
+        }
+        throw new Error("Kon geen tracks uit de opgegeven playlists laden. " + parts.join(" "));
       }
 
       return uniqueTracks;
@@ -1326,7 +1338,12 @@
         return await fetchPlaylistTracksViaItemsEndpoint(playlistId);
       } catch (error) {
         console.warn("Primary playlist tracks endpoint failed, trying playlist detail fallback", playlistId, error);
-        return await fetchPlaylistTracksViaPlaylistEndpoint(playlistId);
+        try {
+          return await fetchPlaylistTracksViaPlaylistEndpoint(playlistId);
+        } catch (fallbackError) {
+          console.warn("Playlist detail fallback failed, trying user playlist fallback", playlistId, fallbackError);
+          return await fetchPlaylistTracksViaUserPlaylists(playlistId);
+        }
       }
     }
 
@@ -1335,7 +1352,13 @@
       let offset = 0;
 
       while (offset < 1000) {
-        const url = API_BASE + "/playlists/" + encodeURIComponent(playlistId) + "/tracks?limit=100&offset=" + offset;
+        const url =
+          API_BASE +
+          "/playlists/" +
+          encodeURIComponent(playlistId) +
+          "/tracks?limit=100&offset=" +
+          offset +
+          "&market=from_token&additional_types=track";
         const response = await fetch(url, {
           headers: {
             Authorization: "Bearer " + appState.accessToken
@@ -1344,7 +1367,7 @@
 
         if (!response.ok) {
           const body = await response.text();
-          throw new Error("Spotify playlist fout " + response.status + ": " + body);
+          throw new Error("Spotify playlist items fout " + response.status + " via " + url + ": " + body);
         }
 
         const data = await response.json();
@@ -1363,7 +1386,13 @@
 
     async function fetchPlaylistTracksViaPlaylistEndpoint(playlistId) {
       const fields = encodeURIComponent("tracks.items(track(id,name,uri,is_local,popularity,duration_ms,artists(name),album(name,album_type,release_date,images),external_urls)),tracks.next");
-      const url = API_BASE + "/playlists/" + encodeURIComponent(playlistId) + "?fields=" + fields;
+      const url =
+        API_BASE +
+        "/playlists/" +
+        encodeURIComponent(playlistId) +
+        "?fields=" +
+        fields +
+        "&market=from_token&additional_types=track";
       const response = await fetch(url, {
         headers: {
           Authorization: "Bearer " + appState.accessToken
@@ -1372,12 +1401,46 @@
 
       if (!response.ok) {
         const body = await response.text();
-        throw new Error("Spotify playlist fallback fout " + response.status + ": " + body);
+        throw new Error("Spotify playlist detail fout " + response.status + " via " + url + ": " + body);
       }
 
       const data = await response.json();
       const items = data.tracks && data.tracks.items ? data.tracks.items : [];
       return items.map((item) => item.track).filter(Boolean);
+    }
+
+    async function fetchPlaylistTracksViaUserPlaylists(playlistId) {
+      let offset = 0;
+
+      while (offset < 200) {
+        const listUrl = API_BASE + "/me/playlists?limit=50&offset=" + offset;
+        const response = await fetch(listUrl, {
+          headers: {
+            Authorization: "Bearer " + appState.accessToken
+          }
+        });
+
+        if (!response.ok) {
+          const body = await response.text();
+          throw new Error("Spotify user playlists fout " + response.status + " via " + listUrl + ": " + body);
+        }
+
+        const data = await response.json();
+        const items = data.items || [];
+        const playlist = items.find((item) => item && item.id === playlistId);
+
+        if (playlist) {
+          return await fetchPlaylistTracksViaItemsEndpoint(playlistId);
+        }
+
+        if (!data.next || items.length < 50) {
+          break;
+        }
+
+        offset += 50;
+      }
+
+      throw new Error("Playlist niet gevonden in /me/playlists voor id " + playlistId);
     }
 
     function hasPlayableTrack(track, minPopularity) {

@@ -1203,8 +1203,12 @@
     }
 
     async function fetchRandomTrack() {
-      const attempts = 24;
+      const attempts = 36;
       const errors = [];
+
+      if (appState.usedTrackIds.size > 250) {
+        appState.usedTrackIds = new Set();
+      }
 
       for (let attempt = 0; attempt < attempts; attempt += 1) {
         const query = buildRandomSearchQuery(attempt);
@@ -1247,17 +1251,19 @@
     }
 
     function buildRandomSearchQuery(attempt) {
-      const currentYear = new Date().getFullYear();
-      const yearStart = 1950 + Math.floor(Math.random() * (currentYear - 1949));
-      const yearEnd = Math.min(yearStart + Math.floor(Math.random() * 10), currentYear);
+      const now = new Date();
+      const latestStableYear = now.getMonth() < 6 ? now.getFullYear() - 1 : now.getFullYear();
+      const maxYear = Math.max(1950, latestStableYear);
+      const yearStart = 1950 + Math.floor(Math.random() * (maxYear - 1949));
+      const yearEnd = Math.min(yearStart + Math.floor(Math.random() * 12), maxYear);
       const randomChar = SEARCH_CHARS[Math.floor(Math.random() * SEARCH_CHARS.length)];
       const randomTerm = SEARCH_TERMS[Math.floor(Math.random() * SEARCH_TERMS.length)];
       const genreTerm = GENRE_TERMS[Math.floor(Math.random() * GENRE_TERMS.length)];
       const decadeStart = Math.max(1950, yearStart - (yearStart % 10));
-      const decadeEnd = Math.min(decadeStart + 9, currentYear);
+      const decadeEnd = Math.min(decadeStart + 9, maxYear);
 
       if (attempt % 6 === 0) {
-        return randomTerm + " year:" + yearStart + "-" + yearEnd;
+        return "\"" + randomTerm + "\" year:" + yearStart + "-" + yearEnd;
       }
 
       if (attempt % 6 === 1) {
@@ -1265,18 +1271,18 @@
       }
 
       if (attempt % 6 === 2) {
-        return randomChar + " year:" + yearStart + "-" + yearEnd;
+        return "\"" + randomTerm + "\" " + genreTerm + " year:" + yearStart + "-" + yearEnd;
       }
 
       if (attempt % 6 === 3) {
-        return randomTerm;
+        return "\"" + randomTerm + "\"";
       }
 
       if (attempt % 6 === 4) {
-        return genreTerm;
+        return genreTerm + " year:" + decadeStart + "-" + decadeEnd;
       }
 
-      return randomChar;
+      return "\"" + randomTerm + "\" " + genreTerm;
     }
 
     function hasPlayableTrack(track, minPopularity) {

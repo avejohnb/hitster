@@ -886,8 +886,8 @@
     const TOKEN_ENDPOINT = "https://accounts.spotify.com/api/token";
     const API_BASE = "https://api.spotify.com/v1";
     const STORAGE_PREFIX = "hitster_qr_";
-    const PRIMARY_MIN_POPULARITY = 45;
-    const FALLBACK_MIN_POPULARITY = 25;
+    const PRIMARY_MIN_POPULARITY = 25;
+    const FALLBACK_MIN_POPULARITY = 0;
     const DEFAULT_PLAYLIST_SOURCES = [
       "https://open.spotify.com/playlist/37i9dQZF1DX4UtSsGT1Sbe",
       "https://open.spotify.com/playlist/37i9dQZF1DXbTxeAdrVG2l"
@@ -1322,12 +1322,25 @@
         appState.usedTrackIds = new Set();
       }
 
-      const items = appState.importedTracks
+      const strictItems = appState.importedTracks
+        .filter((track) => hasPlayableTrack(track, PRIMARY_MIN_POPULARITY))
+        .filter((track) => !appState.usedTrackIds.has(track.id));
+
+      const fallbackItems = appState.importedTracks
         .filter((track) => hasPlayableTrack(track, FALLBACK_MIN_POPULARITY))
         .filter((track) => !appState.usedTrackIds.has(track.id));
 
+      const items = strictItems.length ? strictItems : fallbackItems;
+
       if (!items.length) {
-        throw new Error("De playlist-pool bevat geen nieuwe speelbare tracks.");
+        const broadlyPlayable = appState.importedTracks.filter((track) => hasBroadlyPlayableTrack(track)).length;
+        throw new Error(
+          "De lokale trackpool bevat geen bruikbare tracks voor deze ronde. " +
+          broadlyPlayable +
+          " van de " +
+          appState.importedTracks.length +
+          " geimporteerde tracks lijken technisch bruikbaar."
+        );
       }
 
       const sorted = [...items].sort((a, b) => (b.popularity || 0) - (a.popularity || 0));
@@ -1743,13 +1756,36 @@
         track.popularity >= minPopularity &&
         typeof track.duration_ms === "number" &&
         track.duration_ms >= 90000 &&
-        track.duration_ms <= 420000 &&
+        track.duration_ms <= 540000 &&
         track.name &&
         track.artists &&
         track.artists.length &&
         track.album &&
         track.album.release_date &&
         ["album", "single", "compilation"].includes(track.album.album_type)
+      );
+    }
+
+    function hasBroadlyPlayableTrack(track) {
+      const title = (track && track.name ? track.name : "").toLowerCase();
+      const albumName = (track && track.album && track.album.name ? track.album.name : "").toLowerCase();
+      const artistNames = (track && track.artists ? track.artists.map((artist) => artist.name).join(" ").toLowerCase() : "");
+      const combinedText = [title, albumName, artistNames].join(" ");
+      const hasBlockedTerm = BLOCKED_AUDIO_TERMS.some((term) => combinedText.includes(term));
+
+      return Boolean(
+        track &&
+        track.uri &&
+        !track.is_local &&
+        !hasBlockedTerm &&
+        typeof track.duration_ms === "number" &&
+        track.duration_ms >= 60000 &&
+        track.duration_ms <= 720000 &&
+        track.name &&
+        track.artists &&
+        track.artists.length &&
+        track.album &&
+        track.album.release_date
       );
     }
 

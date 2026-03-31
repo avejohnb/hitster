@@ -1147,7 +1147,7 @@
       for (let attempt = 0; attempt < attempts; attempt += 1) {
         const query = buildRandomSearchQuery(attempt);
         const offset = Math.floor(Math.random() * 1000);
-        const url = API_BASE + "/search?type=track&limit=50&offset=" + offset + "&q=" + encodeURIComponent(query);
+        const url = API_BASE + "/search?type=track&limit=20&offset=" + offset + "&q=" + encodeURIComponent(query);
         const response = await fetch(url, {
           headers: {
             Authorization: "Bearer " + appState.accessToken

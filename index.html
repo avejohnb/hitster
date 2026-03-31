@@ -687,12 +687,12 @@
           </div>
 
           <div class="form-row">
-            <label class="input-label" for="playlist-sources">Playlist bron(nen)</label>
+            <label class="input-label" for="playlist-sources">Spotify bron(nen)</label>
             <textarea class="field" id="playlist-sources" rows="5" spellcheck="false"></textarea>
           </div>
 
           <div class="btn-row">
-            <button id="import-playlists-btn" class="btn btn-secondary" type="button">Importeer playlist(s)</button>
+            <button id="import-playlists-btn" class="btn btn-secondary" type="button">Importeer bron(nen)</button>
             <button id="login-btn" class="btn btn-primary" type="button">Inloggen met Spotify</button>
             <button id="reset-btn" class="btn btn-secondary" type="button">Reset gegevens</button>
           </div>
@@ -703,8 +703,9 @@
             Zet in het Spotify Dashboard exact deze redirect URI bij je app:
             <strong>https://avejohnb.github.io/hitster/</strong>
             <br>
-            Plak hieronder een of meer Spotify playlist-links of playlist-ID's, elk op een nieuwe regel.
-            Gebruik daarna `Importeer playlist(s)`. Het spel draait vervolgens op de lokaal opgeslagen trackpool, zodat je niet bij elke ronde opnieuw afhankelijk bent van playlist-API-calls.
+            Plak hieronder Spotify playlist-links, playlist-ID's, track-links of track-ID's.
+            Je mag ook een hele blok tekst met meerdere Spotify track-links plakken: de app haalt de track-ID's er automatisch uit.
+            Gebruik daarna `Importeer bron(nen)`. Het spel draait vervolgens op de lokaal opgeslagen trackpool, zodat je niet bij elke ronde opnieuw afhankelijk bent van playlist-API-calls.
           </div>
         </div>
       </section>
@@ -746,14 +747,14 @@
         <div class="guess-panel">
           <div>
             <div class="kicker">Bron import</div>
-            <p class="helper">Plak hier playlist-links of IDs, importeer ze eenmalig, en speel daarna uit de lokale trackpool.</p>
+            <p class="helper">Plak hier playlist-links, playlist-ID's, track-links of track-ID's. Ook grotere tekstblokken met meerdere Spotify track-links zijn goed: de app haalt de track-ID's er automatisch uit en speelt daarna uit de lokale trackpool.</p>
           </div>
           <div class="form-row">
-            <label class="input-label" for="playlist-sources-host">Playlist bron(nen)</label>
+            <label class="input-label" for="playlist-sources-host">Spotify bron(nen)</label>
             <textarea class="field" id="playlist-sources-host" rows="4" spellcheck="false"></textarea>
           </div>
           <div class="btn-row">
-            <button id="import-playlists-btn-host" class="btn btn-secondary" type="button">Importeer playlist(s)</button>
+            <button id="import-playlists-btn-host" class="btn btn-secondary" type="button">Importeer bron(nen)</button>
           </div>
           <div id="import-status-host" class="status"></div>
         </div>
@@ -878,7 +879,7 @@
   <script>
     const DEFAULT_CLIENT_ID = "aa73d66f565e4f28840c017cf439e73a";
     const DEFAULT_REDIRECT_URI = "https://avejohnb.github.io/hitster/";
-    const APP_VERSION = "v2026.03.31-10";
+    const APP_VERSION = "v2026.03.31-13";
     const AUTH_ENDPOINT = "https://accounts.spotify.com/authorize";
     const TOKEN_ENDPOINT = "https://accounts.spotify.com/api/token";
     const API_BASE = "https://api.spotify.com/v1";
@@ -1312,21 +1313,27 @@
 
     async function importPlaylists() {
       if (!appState.accessToken) {
-        loginStatus.textContent = "Log eerst in met Spotify voordat je playlists importeert.";
+        loginStatus.textContent = "Log eerst in met Spotify voordat je bronnen importeert.";
         return;
       }
 
       saveConfig();
-      importStatus.textContent = "Playlist(s) importeren...";
-      importStatusHost.textContent = "Playlist(s) importeren...";
+        importStatus.textContent = "Spotify bronnen importeren...";
+        importStatusHost.textContent = "Spotify bronnen importeren...";
       try {
         if (!appState.userCountry) {
           await hydrateUserProfile();
         }
-        const tracks = await loadPlaylistPool();
+        const result = await loadPlaylistPool();
+        const tracks = result.tracks;
         appState.importedTracks = tracks;
         localStorage.setItem(STORAGE_PREFIX + "imported_tracks", JSON.stringify(tracks));
-        importStatus.textContent = "Import gelukt: " + tracks.length + " tracks opgeslagen voor het spel.";
+        importStatus.textContent =
+          "Import gelukt: " +
+          tracks.length +
+          " tracks opgeslagen voor het spel. Gevonden in je invoer: " +
+          result.sourceSummary +
+          ".";
         importStatusHost.textContent = importStatus.textContent;
       } catch (error) {
         console.error(error);
@@ -1341,15 +1348,19 @@
         (localStorage.getItem(STORAGE_PREFIX + "playlist_sources") || "").trim() ||
         DEFAULT_PLAYLIST_SOURCES;
 
-      const playlistIds = parsePlaylistSources(configuredSources);
-      if (!playlistIds.length) {
-        throw new Error("Vul minimaal een Spotify playlist-link of playlist-ID in.");
+      const parsedSources = parseSpotifySources(configuredSources);
+      const playlistIds = parsedSources.playlistIds;
+      const directTrackIds = parsedSources.trackIds;
+
+      if (!playlistIds.length && !directTrackIds.length) {
+        throw new Error("Vul minimaal een Spotify playlist-link, playlist-ID, track-link of track-ID in.");
       }
 
       const tracks = [];
       const failedPlaylists = [];
       const emptyPlaylists = [];
       const unreadablePlaylists = [];
+      const failedTracks = [];
 
       for (const playlistId of playlistIds) {
         try {
@@ -1367,6 +1378,16 @@
           } else {
             failedPlaylists.push(playlistId + " (" + (error.message || "fout") + ")");
           }
+        }
+      }
+
+      if (directTrackIds.length) {
+        try {
+          const importedTrackBatch = await fetchTracksByIds(directTrackIds);
+          tracks.push(...importedTrackBatch);
+        } catch (error) {
+          console.warn("Direct track import failed", error);
+          failedTracks.push(error.message || "track-import fout");
         }
       }
 
@@ -1391,27 +1412,94 @@
         if (emptyPlaylists.length) {
           parts.push("Lege playlists of geen track-items: " + emptyPlaylists.join(" | "));
         }
-        throw new Error("Kon geen tracks uit de opgegeven playlists laden. " + parts.join(" "));
+        if (failedTracks.length) {
+          parts.push("Track-import mislukte: " + failedTracks.join(" | "));
+        }
+        throw new Error(
+          "Kon geen tracks uit de opgegeven bronnen laden. Invoer bevatte " +
+          buildSourceSummary(playlistIds.length, directTrackIds.length) +
+          ". " +
+          parts.join(" ")
+        );
       }
 
-      return uniqueTracks;
+      return {
+        tracks: uniqueTracks,
+        sourceSummary: buildSourceSummary(playlistIds.length, directTrackIds.length)
+      };
     }
 
-    function parsePlaylistSources(value) {
-      return value
+    function parseSpotifySources(value) {
+      const playlistIds = new Set();
+      const trackIds = new Set();
+      const text = String(value || "");
+
+      const addMatches = (regex, targetSet, groupIndex = 1) => {
+        const matches = text.matchAll(regex);
+        for (const match of matches) {
+          if (match && match[groupIndex]) {
+            targetSet.add(match[groupIndex]);
+          }
+        }
+      };
+
+      addMatches(/open\.spotify\.com\/playlist\/([A-Za-z0-9]+)/gi, playlistIds);
+      addMatches(/open\.spotify\.com\/track\/([A-Za-z0-9]+)/gi, trackIds);
+      addMatches(/spotify:playlist:([A-Za-z0-9]+)/gi, playlistIds);
+      addMatches(/spotify:track:([A-Za-z0-9]+)/gi, trackIds);
+
+      text
         .split(/\n+/)
         .map((line) => line.trim())
         .filter(Boolean)
-        .map((line) => {
-          const match = line.match(/playlist\/([A-Za-z0-9]+)/);
-          if (match) {
-            return match[1];
-          }
-
+        .forEach((line) => {
           const clean = line.replace(/\?.*$/, "").trim();
-          return /^[A-Za-z0-9]{10,}$/.test(clean) ? clean : null;
-        })
-        .filter(Boolean);
+          if (/^[A-Za-z0-9]{10,}$/.test(clean) && !playlistIds.has(clean)) {
+            trackIds.add(clean);
+          }
+        });
+
+      return {
+        playlistIds: [...playlistIds],
+        trackIds: [...trackIds]
+      };
+    }
+
+    async function fetchTracksByIds(trackIds) {
+      const uniqueIds = [...new Set(trackIds.filter(Boolean))];
+      const imported = [];
+      const market = getMarketQuery();
+
+      for (let index = 0; index < uniqueIds.length; index += 50) {
+        const chunk = uniqueIds.slice(index, index + 50);
+        const url = API_BASE + "/tracks?ids=" + encodeURIComponent(chunk.join(",")) + market;
+        const response = await fetch(url, {
+          headers: {
+            Authorization: "Bearer " + appState.accessToken
+          }
+        });
+
+        if (!response.ok) {
+          const body = await response.text();
+          throw new Error("Spotify tracks fout " + response.status + " via " + url + ": " + body);
+        }
+
+        const data = await response.json();
+        imported.push(...(data.tracks || []).filter(Boolean));
+      }
+
+      return imported;
+    }
+
+    function buildSourceSummary(playlistCount, trackCount) {
+      const parts = [];
+      if (playlistCount) {
+        parts.push(playlistCount + " playlist" + (playlistCount === 1 ? "" : "s"));
+      }
+      if (trackCount) {
+        parts.push(trackCount + " tracklink" + (trackCount === 1 ? "" : "s/IDs"));
+      }
+      return parts.length ? parts.join(" en ") : "0 bronnen";
     }
 
     async function fetchPlaylistTracks(playlistId) {

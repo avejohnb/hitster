@@ -861,7 +861,7 @@
   <script>
     const DEFAULT_CLIENT_ID = "aa73d66f565e4f28840c017cf439e73a";
     const DEFAULT_REDIRECT_URI = "https://avejohnb.github.io/hitster/";
-    const APP_VERSION = "v2026.03.31-5";
+    const APP_VERSION = "v2026.03.31-6";
     const AUTH_ENDPOINT = "https://accounts.spotify.com/authorize";
     const TOKEN_ENDPOINT = "https://accounts.spotify.com/api/token";
     const API_BASE = "https://api.spotify.com/v1";
@@ -1277,6 +1277,7 @@
       const tracks = [];
       const failedPlaylists = [];
       const emptyPlaylists = [];
+      const unreadablePlaylists = [];
 
       for (const playlistId of playlistIds) {
         try {
@@ -1288,7 +1289,11 @@
           tracks.push(...playlistTracks);
         } catch (error) {
           console.warn("Playlist load failed", playlistId, error);
-          failedPlaylists.push(playlistId + " (" + (error.message || "fout") + ")");
+          if (String(error.message || "").includes("geen bruikbare track-items")) {
+            unreadablePlaylists.push(playlistId + " (" + (error.message || "fout") + ")");
+          } else {
+            failedPlaylists.push(playlistId + " (" + (error.message || "fout") + ")");
+          }
         }
       }
 
@@ -1306,6 +1311,9 @@
         const parts = [];
         if (failedPlaylists.length) {
           parts.push("Mislukte playlists: " + failedPlaylists.join(" | "));
+        }
+        if (unreadablePlaylists.length) {
+          parts.push("Playlist-items niet leesbaar als tracks: " + unreadablePlaylists.join(" | "));
         }
         if (emptyPlaylists.length) {
           parts.push("Lege playlists of geen track-items: " + emptyPlaylists.join(" | "));
@@ -1350,6 +1358,8 @@
     async function fetchPlaylistTracksViaItemsEndpoint(playlistId) {
       const tracks = [];
       let offset = 0;
+      let totalItemsSeen = 0;
+      let totalTrackCandidates = 0;
 
       while (offset < 1000) {
         const url =
@@ -1372,13 +1382,22 @@
 
         const data = await response.json();
         const items = data.items || [];
-        tracks.push(...items.map((item) => item.track).filter(Boolean));
+        totalItemsSeen += items.length;
+        const normalizedTracks = items
+          .map(extractTrackFromPlaylistItem)
+          .filter(Boolean);
+        totalTrackCandidates += normalizedTracks.length;
+        tracks.push(...normalizedTracks);
 
         if (!data.next || items.length < 100) {
           break;
         }
 
         offset += 100;
+      }
+
+      if (!tracks.length && totalItemsSeen > 0) {
+        throw new Error("playlist heeft " + totalItemsSeen + " items maar geen bruikbare track-items");
       }
 
       return tracks;
@@ -1406,7 +1425,13 @@
 
       const data = await response.json();
       const items = data.tracks && data.tracks.items ? data.tracks.items : [];
-      return items.map((item) => item.track).filter(Boolean);
+      const normalizedTracks = items.map(extractTrackFromPlaylistItem).filter(Boolean);
+
+      if (!normalizedTracks.length && items.length > 0) {
+        throw new Error("playlist detail heeft " + items.length + " items maar geen bruikbare track-items");
+      }
+
+      return normalizedTracks;
     }
 
     async function fetchPlaylistTracksViaUserPlaylists(playlistId) {
@@ -1441,6 +1466,22 @@
       }
 
       throw new Error("Playlist niet gevonden in /me/playlists voor id " + playlistId);
+    }
+
+    function extractTrackFromPlaylistItem(item) {
+      if (!item) {
+        return null;
+      }
+
+      if (item.track && typeof item.track === "object") {
+        return item.track;
+      }
+
+      if (item instanceof Object && item.id && item.uri) {
+        return item;
+      }
+
+      return null;
     }
 
     function hasPlayableTrack(track, minPopularity) {

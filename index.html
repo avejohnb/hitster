@@ -702,6 +702,7 @@
             <strong>https://avejohnb.github.io/hitster/</strong>
             <br>
             Plak hieronder een of meer Spotify playlist-links of playlist-ID's, elk op een nieuwe regel.
+            Gebruik bij voorkeur publieke playlists. Voor private of collaborative playlists moet je opnieuw inloggen zodat playlist-leesscopes worden meegenomen.
           </div>
         </div>
       </section>
@@ -860,7 +861,7 @@
   <script>
     const DEFAULT_CLIENT_ID = "aa73d66f565e4f28840c017cf439e73a";
     const DEFAULT_REDIRECT_URI = "https://avejohnb.github.io/hitster/";
-    const APP_VERSION = "v2026.03.31-2";
+    const APP_VERSION = "v2026.03.31-3";
     const AUTH_ENDPOINT = "https://accounts.spotify.com/authorize";
     const TOKEN_ENDPOINT = "https://accounts.spotify.com/api/token";
     const API_BASE = "https://api.spotify.com/v1";
@@ -1091,7 +1092,9 @@
             "user-read-email",
             "user-read-private",
             "user-read-playback-state",
-            "user-modify-playback-state"
+            "user-modify-playback-state",
+            "playlist-read-private",
+            "playlist-read-collaborative"
           ].join(" "),
           code_challenge_method: "S256",
           code_challenge: challenge,
@@ -1178,6 +1181,7 @@
         return;
       }
 
+      saveConfig();
       appState.roundNumber = 0;
       appState.usedTrackIds = new Set();
       appState.playlistPool = [];
@@ -1260,16 +1264,27 @@
     }
 
     async function loadPlaylistPool() {
-      const playlistIds = parsePlaylistSources(playlistSourcesInput.value);
+      const configuredSources =
+        (playlistSourcesInput && playlistSourcesInput.value ? playlistSourcesInput.value : "").trim() ||
+        (localStorage.getItem(STORAGE_PREFIX + "playlist_sources") || "").trim() ||
+        DEFAULT_PLAYLIST_SOURCES;
+
+      const playlistIds = parsePlaylistSources(configuredSources);
       if (!playlistIds.length) {
         throw new Error("Vul minimaal een Spotify playlist-link of playlist-ID in.");
       }
 
       const tracks = [];
+      const failedPlaylists = [];
 
       for (const playlistId of playlistIds) {
-        const playlistTracks = await fetchPlaylistTracks(playlistId);
-        tracks.push(...playlistTracks);
+        try {
+          const playlistTracks = await fetchPlaylistTracks(playlistId);
+          tracks.push(...playlistTracks);
+        } catch (error) {
+          console.warn("Playlist load failed", playlistId, error);
+          failedPlaylists.push(playlistId + " (" + (error.message || "fout") + ")");
+        }
       }
 
       const uniqueTracks = [];
@@ -1283,7 +1298,7 @@
       }
 
       if (!uniqueTracks.length) {
-        throw new Error("Kon geen tracks uit de opgegeven playlists laden.");
+        throw new Error("Kon geen tracks uit de opgegeven playlists laden. Mislukte playlists: " + failedPlaylists.join(" | "));
       }
 
       return uniqueTracks;
@@ -1307,6 +1322,15 @@
     }
 
     async function fetchPlaylistTracks(playlistId) {
+      try {
+        return await fetchPlaylistTracksViaItemsEndpoint(playlistId);
+      } catch (error) {
+        console.warn("Primary playlist tracks endpoint failed, trying playlist detail fallback", playlistId, error);
+        return await fetchPlaylistTracksViaPlaylistEndpoint(playlistId);
+      }
+    }
+
+    async function fetchPlaylistTracksViaItemsEndpoint(playlistId) {
       const tracks = [];
       let offset = 0;
 
@@ -1335,6 +1359,25 @@
       }
 
       return tracks;
+    }
+
+    async function fetchPlaylistTracksViaPlaylistEndpoint(playlistId) {
+      const fields = encodeURIComponent("tracks.items(track(id,name,uri,is_local,popularity,duration_ms,artists(name),album(name,album_type,release_date,images),external_urls)),tracks.next");
+      const url = API_BASE + "/playlists/" + encodeURIComponent(playlistId) + "?fields=" + fields;
+      const response = await fetch(url, {
+        headers: {
+          Authorization: "Bearer " + appState.accessToken
+        }
+      });
+
+      if (!response.ok) {
+        const body = await response.text();
+        throw new Error("Spotify playlist fallback fout " + response.status + ": " + body);
+      }
+
+      const data = await response.json();
+      const items = data.tracks && data.tracks.items ? data.tracks.items : [];
+      return items.map((item) => item.track).filter(Boolean);
     }
 
     function hasPlayableTrack(track, minPopularity) {

@@ -992,8 +992,11 @@
     }
 
     function fillSavedConfig() {
-      clientIdInput.value = localStorage.getItem(STORAGE_PREFIX + "client_id") || DEFAULT_CLIENT_ID;
-      redirectUriInput.value = localStorage.getItem(STORAGE_PREFIX + "redirect_uri") || DEFAULT_REDIRECT_URI;
+      const storedClientId = (localStorage.getItem(STORAGE_PREFIX + "client_id") || "").trim();
+      const storedRedirectUri = (localStorage.getItem(STORAGE_PREFIX + "redirect_uri") || "").trim();
+
+      clientIdInput.value = storedClientId || DEFAULT_CLIENT_ID;
+      redirectUriInput.value = storedRedirectUri || DEFAULT_REDIRECT_URI;
     }
 
     function saveConfig() {
